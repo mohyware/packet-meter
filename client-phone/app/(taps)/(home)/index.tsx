@@ -1,78 +1,150 @@
-import { Link, Stack } from 'expo-router';
-import { Image, View, StyleSheet, Button, NativeModules, Linking, Alert } from 'react-native';
+import { Stack } from 'expo-router';
+import { View, StyleSheet, FlatList } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
-import { useState } from 'react';
-const { NetworkUsage, UsageAccess, MyModule } = NativeModules;
-
-async function openSettings() {
-    try {
-        await Linking.openSettings();
-    } catch (error) {
-        console.error(error);
-    }
-}
-
-function LogoTitle() {
-    return (
-        <Image style={styles.image} source={{ uri: 'https://reactnative.dev/img/tiny_logo.png' }} />
-    );
-}
-
-export async function getTotalUsage() {
-    let totalUsage = 0;
-    try {
-        const bytes = await NetworkUsage.getTotalUsage();
-        totalUsage = bytes / (1024 ** 2);
-        console.log('Total usage:', totalUsage, 'MB');
-        return totalUsage;
-    } catch (e) {
-        console.error(e);
-    }
-}
-
-const ensurePermission = async () => {
-    const granted = await UsageAccess.hasUsageAccess();
-    if (!granted) {
-        UsageAccess.openUsageAccessSettings();
-    } else {
-        Alert.alert("Permission already granted ✅");
-    }
-};
+import { useState, useEffect, useCallback } from 'react';
+import { AppUsageCard } from '@/components/AppUsageCard';
+import { TimePeriodSelector } from '@/components/TimePeriodSelector';
+import { PermissionHandler } from '@/components/PermissionHandler';
+import { TotalUsageHeader } from '@/components/TotalUsageHeader';
+import { useNetworkUsage } from '@/hooks/useNetworkUsage';
 
 export default function HomeScreen() {
-    const [count, setCount] = useState(0);
+    const [selectedPeriod, setSelectedPeriod] = useState('day');
+    const [selectedCount, setSelectedCount] = useState(1);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
+
+    const {
+        appUsages,
+        totalUsage,
+        loading,
+        hasPermission,
+        checkPermission,
+        getAppNetworkUsage,
+        getTotalNetworkUsage,
+        formatBytes,
+    } = useNetworkUsage();
+
+    // Auto-load on app open
+    useEffect(() => {
+        const initializeApp = async () => {
+            const hasAccess = await checkPermission();
+            if (hasAccess) {
+                await Promise.all([
+                    getAppNetworkUsage(selectedPeriod, selectedCount),
+                    getTotalNetworkUsage(selectedPeriod, selectedCount)
+                ]);
+            }
+            setIsInitialLoad(false);
+        };
+
+        initializeApp();
+    }, [checkPermission, getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
+
+    // Reload when period or count changes
+    useEffect(() => {
+        if (!isInitialLoad && hasPermission) {
+            Promise.all([
+                getAppNetworkUsage(selectedPeriod, selectedCount),
+                getTotalNetworkUsage(selectedPeriod, selectedCount)
+            ]);
+        }
+    }, [selectedPeriod, selectedCount, isInitialLoad, hasPermission, getAppNetworkUsage, getTotalNetworkUsage]);
+
+    const handlePeriodChange = useCallback((period: string) => {
+        setSelectedPeriod(period);
+        if (period === 'month') {
+            setSelectedCount(1);
+        } else if (selectedCount > 7) {
+            setSelectedCount(7);
+        }
+    }, [selectedCount]);
+
+    const handlePermissionGranted = useCallback(async () => {
+        await Promise.all([
+            getAppNetworkUsage(selectedPeriod, selectedCount),
+            getTotalNetworkUsage(selectedPeriod, selectedCount)
+        ]);
+    }, [getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
+
+    const handleRetry = useCallback(async () => {
+        const hasAccess = await checkPermission();
+        if (hasAccess) {
+            await Promise.all([
+                getAppNetworkUsage(selectedPeriod, selectedCount),
+                getTotalNetworkUsage(selectedPeriod, selectedCount)
+            ]);
+        }
+    }, [checkPermission, getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
+
+    // Show permission handler if permission is not granted
+    if (hasPermission === false) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen options={{ title: 'PacketPilot' }} />
+                <PermissionHandler
+                    onPermissionGranted={handlePermissionGranted}
+                    onRetry={handleRetry}
+                />
+            </View>
+        );
+    }
+
+    // Show loading screen during initial load
+    if (isInitialLoad) {
+        return (
+            <View style={styles.container}>
+                <Stack.Screen options={{ title: 'PacketPilot' }} />
+                <ThemedText type="title">Loading...</ThemedText>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
-            <Button title="Show toast" onPress={() => MyModule.showToast('Hello from React Native!')} />
-            <Button title="Ensure permission" onPress={ensurePermission} />
-            {/* <ThemedText type="title">Total usage: {getTotalUsage()}</ThemedText> */}
-            <Button title="Open settings" onPress={openSettings} />
-            <Stack.Screen
-                options={{
-                    title: 'My home',
-                    headerStyle: { backgroundColor: '#f4511e' },
-                    headerTintColor: '#fff',
-                    headerTitleStyle: {
-                        fontWeight: 'bold',
-                    },
-                    headerRight: () => <Button onPress={() => setCount(c => c + 1)} title="Update count" />,
+            <Stack.Screen options={{ title: 'PacketPilot' }} />
 
-                    headerTitle: () => <LogoTitle />,
-                }}
+            <TotalUsageHeader
+                totalUsage={totalUsage}
+                formatBytes={formatBytes}
+                period={selectedPeriod}
+                count={selectedCount}
             />
-            <ThemedText type="title">Home</ThemedText>
-            <ThemedText type="link">
-                <Link
-                    href={{
-                        pathname: '/details/[id]',
-                        params: { id: 'bacon' },
-                    }}>
-                    View user details
-                </Link>
-            </ThemedText>
-            <ThemedText>Count: {count}</ThemedText>
 
+            <TimePeriodSelector
+                selectedPeriod={selectedPeriod}
+                selectedCount={selectedCount}
+                onPeriodChange={handlePeriodChange}
+                onCountChange={setSelectedCount}
+            />
+
+            {loading && (
+                <ThemedText style={styles.loadingText}>Loading network usage...</ThemedText>
+            )}
+
+            {appUsages.length > 0 && (
+                <View style={styles.appListContainer}>
+                    <ThemedText type="subtitle" style={styles.subtitle}>
+                        App Network Usage (Last {selectedCount} {selectedPeriod}{selectedCount > 1 ? 's' : ''})
+                    </ThemedText>
+                    <FlatList
+                        data={appUsages}
+                        renderItem={({ item }) => (
+                            <AppUsageCard item={item} formatBytes={formatBytes} />
+                        )}
+                        keyExtractor={(item) => item.packageName}
+                        style={styles.appList}
+                        showsVerticalScrollIndicator={false}
+                    />
+                </View>
+            )}
+
+            {!loading && appUsages.length === 0 && hasPermission && (
+                <View style={styles.emptyContainer}>
+                    <ThemedText style={styles.emptyText}>
+                        No network usage data found for the selected period.
+                    </ThemedText>
+                </View>
+            )}
         </View>
     );
 }
@@ -80,11 +152,33 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
+        backgroundColor: '#f8f9fa',
     },
-    image: {
-        width: 50,
-        height: 50,
+    appListContainer: {
+        flex: 1,
+        paddingHorizontal: 10,
+    },
+    appList: {
+        flex: 1,
+    },
+    subtitle: {
+        color: '#09090B',
+    },
+    loadingText: {
+        textAlign: 'center',
+        marginTop: 20,
+        fontSize: 16,
+        color: '#666',
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    emptyText: {
+        textAlign: 'center',
+        fontSize: 16,
+        color: '#666',
     },
 });

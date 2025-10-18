@@ -12,7 +12,7 @@ export default function HomeLayout() {
                     fontWeight: 'bold',
                 },
             }}>
-            <Stack.Screen name="index" />
+            <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="details" options={{ headerShown: false }} />
             <Stack.Screen name="details/[id]" />
         </Stack>
