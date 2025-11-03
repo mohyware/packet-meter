@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { TotalNetworkData } from '@/hooks/useNetworkUsage';
+import { ThemedView } from '@/components/themed-view';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface TotalUsageHeaderProps {
     totalUsage: TotalNetworkData | null;
@@ -11,42 +13,42 @@ interface TotalUsageHeaderProps {
 }
 
 export function TotalUsageHeader({ totalUsage, formatBytes, period, count }: TotalUsageHeaderProps) {
+    const borderColor = useThemeColor({ light: '#eee', dark: '#2a2d2e' }, 'icon');
+
     if (!totalUsage) {
         return (
             <View style={styles.container}>
-                <ThemedText type="title" style={styles.title}>PacketPilot</ThemedText>
             </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <ThemedText type="title" style={styles.title}>PacketPilot</ThemedText>
-            <View style={styles.usageContainer}>
+            <ThemedView style={[styles.usageContainer, { borderTopColor: borderColor }]}>
                 <ThemedText style={styles.periodText}>
                     Last {count} {period}{count > 1 ? 's' : ''}
                 </ThemedText>
                 <View style={styles.statsContainer}>
                     <View style={styles.statRow}>
-                        <Text style={styles.statLabel}>Wi-Fi:</Text>
-                        <Text style={styles.statValue}>
+                        <ThemedText style={styles.statLabel}>Wi-Fi:</ThemedText>
+                        <ThemedText style={styles.statValue}>
                             ↓{formatBytes(totalUsage.wifi.rx)} ↑{formatBytes(totalUsage.wifi.tx)} = {formatBytes(totalUsage.wifi.total)}
-                        </Text>
+                        </ThemedText>
                     </View>
                     <View style={styles.statRow}>
-                        <Text style={styles.statLabel}>Mobile:</Text>
-                        <Text style={styles.statValue}>
+                        <ThemedText style={styles.statLabel}>Mobile:</ThemedText>
+                        <ThemedText style={styles.statValue}>
                             ↓{formatBytes(totalUsage.mobile.rx)} ↑{formatBytes(totalUsage.mobile.tx)} = {formatBytes(totalUsage.mobile.total)}
-                        </Text>
+                        </ThemedText>
                     </View>
-                    <View style={[styles.statRow, styles.totalRow]}>
-                        <Text style={styles.totalLabel}>Total:</Text>
-                        <Text style={styles.totalValue}>
+                    <View style={[styles.statRow, styles.totalRow, { borderTopColor: borderColor }]}>
+                        <ThemedText style={styles.totalLabel}>Total:</ThemedText>
+                        <ThemedText style={styles.totalValue}>
                             {formatBytes(totalUsage.totalBytes)}
-                        </Text>
+                        </ThemedText>
                     </View>
                 </View>
-            </View>
+            </ThemedView>
         </View>
     );
 }
@@ -56,12 +58,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         paddingVertical: 10,
     },
-    title: {
-        color: '#09090B',
-    },
     usageContainer: {
         marginTop: 10,
-        backgroundColor: '#fff',
         borderRadius: 8,
         padding: 12,
         shadowColor: '#000',
@@ -75,7 +73,6 @@ const styles = StyleSheet.create({
     },
     periodText: {
         fontSize: 14,
-        color: '#666',
         marginBottom: 8,
         textAlign: 'center',
     },
@@ -89,31 +86,27 @@ const styles = StyleSheet.create({
     },
     statLabel: {
         fontSize: 12,
-        color: '#666',
         fontWeight: '500',
         flex: 1,
     },
     statValue: {
         fontSize: 12,
-        color: '#333',
         fontWeight: '500',
         flex: 2,
         textAlign: 'right',
     },
     totalRow: {
         borderTopWidth: 1,
-        borderTopColor: '#eee',
         paddingTop: 8,
         marginTop: 4,
     },
     totalLabel: {
         fontSize: 14,
-        color: '#333',
         fontWeight: 'bold',
     },
     totalValue: {
         fontSize: 14,
-        color: '#f4511e',
+        color: '#5355C4',
         fontWeight: 'bold',
     },
 });

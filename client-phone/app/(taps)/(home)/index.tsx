@@ -7,6 +7,7 @@ import { TimePeriodSelector } from '@/components/TimePeriodSelector';
 import { PermissionHandler } from '@/components/PermissionHandler';
 import { TotalUsageHeader } from '@/components/TotalUsageHeader';
 import { useNetworkUsage } from '@/hooks/useNetworkUsage';
+import { ThemedView } from '@/components/themed-view';
 
 export default function HomeScreen() {
     const [selectedPeriod, setSelectedPeriod] = useState('day');
@@ -79,29 +80,29 @@ export default function HomeScreen() {
     // Show permission handler if permission is not granted
     if (hasPermission === false) {
         return (
-            <View style={styles.container}>
-                <Stack.Screen options={{ title: 'PacketPilot' }} />
+            <ThemedView style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
                 <PermissionHandler
                     onPermissionGranted={handlePermissionGranted}
                     onRetry={handleRetry}
                 />
-            </View>
+            </ThemedView>
         );
     }
 
     // Show loading screen during initial load
     if (isInitialLoad) {
         return (
-            <View style={styles.container}>
-                <Stack.Screen options={{ title: 'PacketPilot' }} />
+            <ThemedView style={styles.container}>
+                <Stack.Screen options={{ headerShown: false }} />
                 <ThemedText type="title">Loading...</ThemedText>
-            </View>
+            </ThemedView>
         );
     }
 
     return (
-        <View style={styles.container}>
-            <Stack.Screen options={{ title: 'PacketPilot' }} />
+        <ThemedView style={styles.container}>
+            {/* <Stack.Screen options={{ headerShown: false }} /> */}
 
             <TotalUsageHeader
                 totalUsage={totalUsage}
@@ -145,14 +146,13 @@ export default function HomeScreen() {
                     </ThemedText>
                 </View>
             )}
-        </View>
+        </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f9fa',
     },
     appListContainer: {
         flex: 1,
@@ -161,14 +161,11 @@ const styles = StyleSheet.create({
     appList: {
         flex: 1,
     },
-    subtitle: {
-        color: '#09090B',
-    },
+    subtitle: {},
     loadingText: {
         textAlign: 'center',
         marginTop: 20,
         fontSize: 16,
-        color: '#666',
     },
     emptyContainer: {
         flex: 1,
@@ -179,6 +176,5 @@ const styles = StyleSheet.create({
     emptyText: {
         textAlign: 'center',
         fontSize: 16,
-        color: '#666',
     },
 });

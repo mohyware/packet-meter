@@ -7,7 +7,7 @@ const { NetworkUsage, UsageAccessPermission } = NativeModules;
 export interface AppNetworkData {
     packageName: string;
     appName: string;
-    icon: string;
+    icon: string | null;
     uid: number;
     wifi: {
         rx: number;
@@ -59,7 +59,7 @@ export function useNetworkUsage() {
         try {
             const usage = JSON.parse(await NetworkUsage.getAppNetworkUsage(period, count));
             setAppUsages(usage);
-            console.log('App network usage:', usage);
+            // console.log('App network usage:', usage);
             return usage;
         } catch (e) {
             console.error('Error getting app network usage:', e);
@@ -87,7 +87,7 @@ export function useNetworkUsage() {
         try {
             const usage = JSON.parse(await NetworkUsage.getTotalNetworkUsage(period, count));
             setTotalUsage(usage);
-            console.log('Total network usage:', usage);
+            // console.log('Total network usage:', usage);
             return usage;
         } catch (e) {
             console.error('Error getting total network usage:', e);

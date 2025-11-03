@@ -5,7 +5,7 @@ export default function HomeLayout() {
         <Stack
             screenOptions={{
                 headerStyle: {
-                    backgroundColor: '#f4511e',
+                    backgroundColor: '#5355C4',
                 },
                 headerTintColor: '#fff',
                 headerTitleStyle: {
@@ -13,8 +13,6 @@ export default function HomeLayout() {
                 },
             }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="details" options={{ headerShown: false }} />
-            <Stack.Screen name="details/[id]" />
         </Stack>
     );
 }

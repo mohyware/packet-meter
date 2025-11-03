@@ -4,20 +4,30 @@ import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getTheme, subscribe } from '@/hooks/theme-store';
+import React from 'react';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const systemScheme = useColorScheme();
+  const [themeName, setThemeName] = React.useState(getTheme() ?? (systemScheme === 'dark' ? 'dark' : 'light'));
+
+  React.useEffect(() => {
+    const unsub = subscribe((t) => setThemeName(t));
+    return unsub;
+  }, []);
+
+  const theme = themeName === 'dark' ? DarkTheme : DefaultTheme;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={theme}>
       <Stack
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#f4511e',
+            backgroundColor: '#5355C4',
           },
           headerTintColor: '#fff',
           headerTitleStyle: {
@@ -26,12 +36,8 @@ export default function RootLayout() {
         }}
       >
 
-        {/* <Stack.Screen name="" options={{ headerShown: false }} /> */}
-        {/* <Stack.Screen name="index" options={{ headerShown: false }} /> */}
         <Stack.Screen name="(taps)" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
-        {/* <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} /> */}
-        {/* <Stack.Screen name="details" options={{ presentation: 'modal', title: 'Details' }} /> */}
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>

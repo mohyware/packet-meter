@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { useThemeColor } from '@/hooks/use-theme-color';
 
 interface TimePeriodSelectorProps {
     selectedPeriod: string;
@@ -19,11 +22,14 @@ export function TimePeriodSelector({
         day: 7,
         week: 4,
         month: 12
-    };
+    } as const;
+
+    const chipBg = useThemeColor({ light: '#f0f0f0', dark: '#2a2d2e' }, 'icon');
+    const selectedBg = '#5355C4';
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Time Period</Text>
+        <ThemedView style={styles.container}>
+            <ThemedText style={styles.title}>Time Period</ThemedText>
 
             {/* Period Selection */}
             <View style={styles.periodContainer}>
@@ -32,16 +38,16 @@ export function TimePeriodSelector({
                         key={period}
                         style={[
                             styles.periodButton,
-                            selectedPeriod === period && styles.selectedButton
+                            { backgroundColor: selectedPeriod === period ? selectedBg : chipBg }
                         ]}
                         onPress={() => onPeriodChange(period)}
                     >
-                        <Text style={[
+                        <ThemedText style={[
                             styles.periodText,
                             selectedPeriod === period && styles.selectedText
                         ]}>
                             {period.charAt(0).toUpperCase() + period.slice(1)}
-                        </Text>
+                        </ThemedText>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -49,35 +55,31 @@ export function TimePeriodSelector({
             {/* Count Selection */}
             {selectedPeriod !== 'month' && (
                 <View style={styles.countContainer}>
-                    <Text style={styles.countTitle}>Last {selectedPeriod === 'day' ? 'days' : 'weeks'}:</Text>
+                    <ThemedText style={styles.countTitle}>Last {selectedPeriod === 'day' ? 'days' : 'weeks'}:</ThemedText>
                     <View style={styles.countButtons}>
                         {Array.from({ length: maxCounts[selectedPeriod as keyof typeof maxCounts] }, (_, i) => i + 1).map((count) => (
                             <TouchableOpacity
                                 key={count}
                                 style={[
                                     styles.countButton,
-                                    selectedCount === count && styles.selectedCountButton
+                                    { backgroundColor: selectedCount === count ? selectedBg : chipBg }
                                 ]}
                                 onPress={() => onCountChange(count)}
                             >
-                                <Text style={[
-                                    styles.countText,
-                                    selectedCount === count && styles.selectedCountText
-                                ]}>
+                                <ThemedText style={selectedCount === count ? styles.selectedCountText : undefined}>
                                     {count}
-                                </Text>
+                                </ThemedText>
                             </TouchableOpacity>
                         ))}
                     </View>
                 </View>
             )}
-        </View>
+        </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#fff',
         borderRadius: 10,
         padding: 15,
         marginHorizontal: 10,
@@ -94,7 +96,6 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#333',
         marginBottom: 10,
     },
     periodContainer: {
@@ -107,16 +108,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         marginHorizontal: 2,
         borderRadius: 6,
-        backgroundColor: '#f0f0f0',
         alignItems: 'center',
-    },
-    selectedButton: {
-        backgroundColor: '#f4511e',
     },
     periodText: {
         fontSize: 14,
-        color: '#666',
         fontWeight: '500',
+        opacity: 0.9,
     },
     selectedText: {
         color: '#fff',
@@ -127,8 +124,8 @@ const styles = StyleSheet.create({
     },
     countTitle: {
         fontSize: 14,
-        color: '#666',
         marginBottom: 8,
+        opacity: 0.9,
     },
     countButtons: {
         flexDirection: 'row',
@@ -140,17 +137,8 @@ const styles = StyleSheet.create({
         marginRight: 8,
         marginBottom: 8,
         borderRadius: 6,
-        backgroundColor: '#f0f0f0',
         minWidth: 40,
         alignItems: 'center',
-    },
-    selectedCountButton: {
-        backgroundColor: '#f4511e',
-    },
-    countText: {
-        fontSize: 12,
-        color: '#666',
-        fontWeight: '500',
     },
     selectedCountText: {
         color: '#fff',
