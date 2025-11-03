@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Button, Alert, StyleSheet } from 'react-native';
-import { NativeModules } from 'react-native';
+import { View, Alert, StyleSheet, NativeModules, TouchableOpacity } from 'react-native';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 
-const { UsageAccessPermission } = NativeModules;
+const { UsageAccessPermission } = NativeModules as { UsageAccessPermission?: any };
 
 interface PermissionHandlerProps {
     onPermissionGranted: () => void;
@@ -12,78 +13,109 @@ interface PermissionHandlerProps {
 export function PermissionHandler({ onPermissionGranted, onRetry }: PermissionHandlerProps) {
     const checkPermission = async () => {
         try {
-            const granted = await UsageAccessPermission.hasUsageAccess();
+            const granted = await UsageAccessPermission?.hasUsageAccess?.();
             if (granted) {
                 onPermissionGranted();
             } else {
                 Alert.alert(
-                    "Permission Required",
-                    "This app needs usage access permission to monitor network usage. Please enable it in settings.",
+                    'Permission Required',
+                    'This app needs usage access permission to monitor network usage. Please enable it in settings.',
                     [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Open Settings", onPress: openUsageSettings }
+                        { text: 'Cancel', style: 'cancel' },
+                        { text: 'Open Settings', onPress: openUsageSettings }
                     ]
                 );
             }
         } catch (error) {
             console.error('Error checking permission:', error);
-            Alert.alert("Error", "Failed to check permission status");
+            Alert.alert('Error', 'Failed to check permission status');
         }
     };
 
     const openUsageSettings = async () => {
         try {
+            if (!UsageAccessPermission?.openUsageAccessSettings) {
+                Alert.alert('Unavailable', 'Cannot open settings on this platform.');
+                return;
+            }
             UsageAccessPermission.openUsageAccessSettings();
         } catch (error) {
             console.error('Error opening settings:', error);
-            Alert.alert("Error", "Failed to open settings");
+            Alert.alert('Error', 'Failed to open settings');
         }
     };
 
     return (
-        <View style={styles.container}>
-            <Text style={styles.title}>Permission Required</Text>
-            <Text style={styles.description}>
-                This app needs usage access permission to monitor network usage for each app.
-                Please grant the permission to continue.
-            </Text>
-            <View style={styles.buttonContainer}>
-                <Button title="Check Permission" onPress={checkPermission} />
-                <View style={styles.spacing} />
-                <Button title="Open Settings" onPress={openUsageSettings} />
-                <View style={styles.spacing} />
-                <Button title="Retry" onPress={onRetry} />
-            </View>
-        </View>
+        <ThemedView style={styles.screen}>
+            <ThemedView style={styles.card}>
+                <ThemedText type="subtitle" style={styles.title}>Permission Required</ThemedText>
+                <ThemedText style={styles.description}>
+                    This app needs usage access permission to monitor network usage for each app.
+                    Please grant the permission to continue.
+                </ThemedText>
+                <View style={styles.buttons}>
+                    <TouchableOpacity style={styles.primaryButton} onPress={checkPermission} activeOpacity={0.9}>
+                        <ThemedText style={styles.primaryButtonText} lightColor="#fff" darkColor="#fff">Check Permission</ThemedText>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.outlineButton} onPress={onRetry} activeOpacity={0.9}>
+                        <ThemedText style={styles.outlineButtonText}>Retry</ThemedText>
+                    </TouchableOpacity>
+                </View>
+            </ThemedView>
+        </ThemedView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    screen: {
         flex: 1,
         justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#fff',
+        alignItems: 'stretch',
+        padding: 16,
+    },
+    card: {
+        borderRadius: 10,
+        padding: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.22,
+        shadowRadius: 2.22,
+        elevation: 3,
+        gap: 12,
     },
     title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 15,
         textAlign: 'center',
     },
     description: {
         fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        marginBottom: 30,
         lineHeight: 22,
+        textAlign: 'center',
+        opacity: 0.9,
     },
-    buttonContainer: {
-        width: '100%',
+    buttons: {
+        gap: 12,
+        marginTop: 8,
     },
-    spacing: {
-        height: 10,
+    primaryButton: {
+        backgroundColor: '#5355C4',
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    primaryButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    outlineButton: {
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#5355C4',
+    },
+    outlineButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#5355C4',
     },
 });

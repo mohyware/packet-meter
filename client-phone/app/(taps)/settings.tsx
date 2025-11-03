@@ -5,7 +5,12 @@ import { getTheme, setTheme, subscribe } from '@/hooks/theme-store';
 import React from 'react';
 import { ThemedView } from '@/components/themed-view';
 
-const { UsageAccessPermission } = NativeModules as { UsageAccessPermission?: any };
+type UsageAccessPermissionType = {
+    hasUsageAccess?: () => Promise<boolean>;
+    openUsageAccessSettings?: () => void;
+};
+
+const { UsageAccessPermission } = NativeModules as { UsageAccessPermission?: UsageAccessPermissionType };
 
 export default function SettingsScreen() {
     const systemScheme = useColorScheme();
@@ -62,10 +67,10 @@ export default function SettingsScreen() {
             <ThemedView style={styles.sectionCard}>
                 <ThemedText type="subtitle">Permissions</ThemedText>
                 <View style={styles.col}>
-                    <TouchableOpacity style={styles.primaryButton} onPress={checkPermission}>
+                    <TouchableOpacity activeOpacity={0.8} style={styles.primaryButton} onPress={checkPermission}>
                         <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Check Permission</ThemedText>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.primaryButton} onPress={openUsageSettings}>
+                    <TouchableOpacity activeOpacity={0.8} style={styles.primaryButton} onPress={openUsageSettings}>
                         <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Open Usage Settings</ThemedText>
                     </TouchableOpacity>
                 </View>

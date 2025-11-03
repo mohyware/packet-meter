@@ -25,25 +25,25 @@ export function TotalUsageHeader({ totalUsage, formatBytes, period, count }: Tot
     return (
         <View style={styles.container}>
             <ThemedView style={[styles.usageContainer, { borderTopColor: borderColor }]}>
-                <ThemedText style={styles.periodText}>
+                <ThemedText style={styles.periodText} numberOfLines={1} ellipsizeMode="clip">
                     Last {count} {period}{count > 1 ? 's' : ''}
                 </ThemedText>
                 <View style={styles.statsContainer}>
                     <View style={styles.statRow}>
-                        <ThemedText style={styles.statLabel}>Wi-Fi:</ThemedText>
-                        <ThemedText style={styles.statValue}>
+                        <ThemedText style={[styles.statLabel, styles.fixedLabel]}>Wi-Fi:</ThemedText>
+                        <ThemedText style={[styles.statValue, styles.fixedValue]} numberOfLines={1} ellipsizeMode="clip">
                             ↓{formatBytes(totalUsage.wifi.rx)} ↑{formatBytes(totalUsage.wifi.tx)} = {formatBytes(totalUsage.wifi.total)}
                         </ThemedText>
                     </View>
                     <View style={styles.statRow}>
-                        <ThemedText style={styles.statLabel}>Mobile:</ThemedText>
-                        <ThemedText style={styles.statValue}>
+                        <ThemedText style={[styles.statLabel, styles.fixedLabel]}>Mobile:</ThemedText>
+                        <ThemedText style={[styles.statValue, styles.fixedValue]} numberOfLines={1} ellipsizeMode="clip">
                             ↓{formatBytes(totalUsage.mobile.rx)} ↑{formatBytes(totalUsage.mobile.tx)} = {formatBytes(totalUsage.mobile.total)}
                         </ThemedText>
                     </View>
                     <View style={[styles.statRow, styles.totalRow, { borderTopColor: borderColor }]}>
-                        <ThemedText style={styles.totalLabel}>Total:</ThemedText>
-                        <ThemedText style={styles.totalValue}>
+                        <ThemedText style={[styles.totalLabel, styles.fixedLabel]}>Total:</ThemedText>
+                        <ThemedText style={[styles.totalValue, styles.fixedValue]} numberOfLines={1} ellipsizeMode="clip">
                             {formatBytes(totalUsage.totalBytes)}
                         </ThemedText>
                     </View>
@@ -70,6 +70,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.22,
         shadowRadius: 2.22,
         elevation: 3,
+        height: 160
     },
     periodText: {
         fontSize: 14,
@@ -77,28 +78,32 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     statsContainer: {
-        gap: 4,
+        gap: 6,
     },
     statRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
     },
+    fixedLabel: {
+        width: 60,
+    },
+    fixedValue: {
+        width: 220,
+        textAlign: 'right',
+    },
     statLabel: {
         fontSize: 12,
         fontWeight: '500',
-        flex: 1,
     },
     statValue: {
         fontSize: 12,
         fontWeight: '500',
-        flex: 2,
-        textAlign: 'right',
     },
     totalRow: {
         borderTopWidth: 1,
         paddingTop: 8,
-        marginTop: 4,
+        marginTop: 2,
     },
     totalLabel: {
         fontSize: 14,

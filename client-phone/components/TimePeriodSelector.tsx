@@ -35,6 +35,7 @@ export function TimePeriodSelector({
             <View style={styles.periodContainer}>
                 {periods.map((period) => (
                     <TouchableOpacity
+                        activeOpacity={0.8}
                         key={period}
                         style={[
                             styles.periodButton,
@@ -59,6 +60,7 @@ export function TimePeriodSelector({
                     <View style={styles.countButtons}>
                         {Array.from({ length: maxCounts[selectedPeriod as keyof typeof maxCounts] }, (_, i) => i + 1).map((count) => (
                             <TouchableOpacity
+                                activeOpacity={0.8}
                                 key={count}
                                 style={[
                                     styles.countButton,
