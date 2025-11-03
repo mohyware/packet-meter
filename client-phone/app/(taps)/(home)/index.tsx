@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { View, StyleSheet, FlatList, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, NativeSyntheticEvent, NativeScrollEvent, ActivityIndicator } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppUsageCard } from '@/components/AppUsageCard';
@@ -16,13 +16,13 @@ export default function HomeScreen() {
     const [selectedCount, setSelectedCount] = useState(1);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [showToTop, setShowToTop] = useState(false);
+    const [isFetching, setIsFetching] = useState(false);
 
     const listRef = useRef<FlatList<any>>(null);
 
     const {
         appUsages,
         totalUsage,
-        loading,
         hasPermission,
         checkPermission,
         getAppNetworkUsage,
@@ -30,29 +30,23 @@ export default function HomeScreen() {
         formatBytes,
     } = useNetworkUsage();
 
-    // Auto-load on app open
     useEffect(() => {
         const initializeApp = async () => {
-            const hasAccess = await checkPermission();
-            if (hasAccess) {
-                await Promise.all([
-                    getAppNetworkUsage(selectedPeriod, selectedCount),
-                    getTotalNetworkUsage(selectedPeriod, selectedCount)
-                ]);
-            }
+            await checkPermission();
             setIsInitialLoad(false);
         };
 
         initializeApp();
-    }, [checkPermission, getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
+    }, [checkPermission]);
 
     // Reload when period or count changes
     useEffect(() => {
         if (!isInitialLoad && hasPermission) {
+            setIsFetching(true);
             Promise.all([
                 getAppNetworkUsage(selectedPeriod, selectedCount),
                 getTotalNetworkUsage(selectedPeriod, selectedCount)
-            ]);
+            ]).finally(() => setIsFetching(false));
         }
     }, [selectedPeriod, selectedCount, isInitialLoad, hasPermission, getAppNetworkUsage, getTotalNetworkUsage]);
 
@@ -66,23 +60,25 @@ export default function HomeScreen() {
     }, [selectedCount]);
 
     const handlePermissionGranted = useCallback(async () => {
+        setIsFetching(true);
         await Promise.all([
             getAppNetworkUsage(selectedPeriod, selectedCount),
             getTotalNetworkUsage(selectedPeriod, selectedCount)
-        ]);
+        ]).finally(() => setIsFetching(false));
     }, [getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
 
     const handleRetry = useCallback(async () => {
         const hasAccess = await checkPermission();
         if (hasAccess) {
+            setIsFetching(true);
             await Promise.all([
                 getAppNetworkUsage(selectedPeriod, selectedCount),
                 getTotalNetworkUsage(selectedPeriod, selectedCount)
-            ]);
+            ]).finally(() => setIsFetching(false));
         }
     }, [checkPermission, getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
 
-    const showLoading = loading || isInitialLoad;
+    const showLoading = isFetching || isInitialLoad;
 
     const Header = () => (
         <View>
@@ -155,6 +151,11 @@ export default function HomeScreen() {
                 onScroll={onScroll}
                 scrollEventThrottle={16}
             />
+            {showLoading && (
+                <View style={styles.loadingOverlay} pointerEvents="auto">
+                    <ActivityIndicator size="large" color="#5355C4" />
+                </View>
+            )}
             {showToTop && (
                 <TouchableOpacity onPress={scrollToTop} style={styles.toTopButton} activeOpacity={0.9}>
                     <ThemedText style={styles.toTopText} lightColor="#fff" darkColor="#fff">↑</ThemedText>
@@ -201,5 +202,16 @@ const styles = StyleSheet.create({
     toTopText: {
         fontSize: 18,
         fontWeight: '700',
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10,
     },
 });

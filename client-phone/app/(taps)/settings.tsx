@@ -59,7 +59,13 @@ export default function SettingsScreen() {
                 <ThemedText type="subtitle">Theme</ThemedText>
                 <View style={styles.row}>
                     <ThemedText>Light</ThemedText>
-                    <Switch value={isDark} onValueChange={onToggleTheme} />
+                    <Switch
+                        value={isDark}
+                        onValueChange={onToggleTheme}
+                        trackColor={{ false: isDark ? '#3a3a3a' : '#cfcfcf', true: '#5355C4' }}
+                        thumbColor={isDark ? '#ffffff' : '#ffffff'}
+                        ios_backgroundColor={isDark ? '#3a3a3a' : '#cfcfcf'}
+                    />
                     <ThemedText>Dark</ThemedText>
                 </View>
             </ThemedView>
@@ -67,10 +73,10 @@ export default function SettingsScreen() {
             <ThemedView style={styles.sectionCard}>
                 <ThemedText type="subtitle">Permissions</ThemedText>
                 <View style={styles.col}>
-                    <TouchableOpacity activeOpacity={0.8} style={styles.primaryButton} onPress={checkPermission}>
+                    <TouchableOpacity activeOpacity={0.9} style={styles.primaryButton} onPress={checkPermission}>
                         <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Check Permission</ThemedText>
                     </TouchableOpacity>
-                    <TouchableOpacity activeOpacity={0.8} style={styles.primaryButton} onPress={openUsageSettings}>
+                    <TouchableOpacity activeOpacity={0.9} style={styles.primaryButton} onPress={openUsageSettings}>
                         <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Open Usage Settings</ThemedText>
                     </TouchableOpacity>
                 </View>
