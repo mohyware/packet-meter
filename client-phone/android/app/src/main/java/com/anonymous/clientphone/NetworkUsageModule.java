@@ -111,7 +111,11 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
 
                 // Query mobile data for this app
                 NetworkStats mobileStats = nsm.queryDetailsForUid(
-                        ConnectivityManager.TYPE_MOBILE, "", startTime, endTime, appInfo.uid);
+                        ConnectivityManager.TYPE_MOBILE,
+                        null,
+                        startTime,
+                        endTime,
+                        appInfo.uid);
 
                 long mobileRx = 0, mobileTx = 0;
                 while (mobileStats.hasNextBucket()) {
@@ -157,6 +161,9 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
                 Log.w("NetworkUsage", "Error processing app " + appInfo.packageName + ": " + e.getMessage());
             }
         }
+
+        // Add tethering usage as an app entry
+        addTetheringUsageToAppList(appUsages, nsm, startTime, endTime);
 
         // Sort by total bytes descending
         appUsages.sort((a, b) -> {
@@ -207,55 +214,21 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
             long mobileRx = 0, mobileTx = 0;
 
             // ---------- Wi-Fi ----------
-            NetworkStats wifiStats = nsm.querySummary(
+            NetworkStats.Bucket wifiBucket = nsm.querySummaryForDevice(
                     ConnectivityManager.TYPE_WIFI, "", startTime, endTime);
-            NetworkStats.Bucket wifiBucket = new NetworkStats.Bucket();
-            while (wifiStats.hasNextBucket()) {
-                wifiStats.getNextBucket(wifiBucket);
-                wifiRx += wifiBucket.getRxBytes();
-                wifiTx += wifiBucket.getTxBytes();
+            if (wifiBucket != null) {
+                wifiRx = wifiBucket.getRxBytes();
+                wifiTx = wifiBucket.getTxBytes();
             }
-            wifiStats.close();
 
             // ---------- Mobile ----------
-            TelephonyManager tm = (TelephonyManager) reactContext.getSystemService(Context.TELEPHONY_SERVICE);
-            String subscriberId = null;
-
-            if (ActivityCompat.checkSelfPermission(reactContext,
-                    Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-
-                try {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP_MR1) {
-                        SubscriptionManager sm = (SubscriptionManager) reactContext
-                                .getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
-                        if (sm != null && sm.getActiveSubscriptionInfoList() != null
-                                && !sm.getActiveSubscriptionInfoList().isEmpty()) {
-                            if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.Q) {
-                                subscriberId = tm.getSubscriberId();
-                            } else {
-                                subscriberId = tm.getImei();
-                            }
-                        }
-                    } else {
-                        subscriberId = tm.getSubscriberId();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            } else {
-                android.util.Log.w("Permissions", "READ_PHONE_STATE permission not granted");
-            }
-
-            if (subscriberId != null) {
-                NetworkStats mobileStats = nsm.querySummary(
-                        ConnectivityManager.TYPE_MOBILE, subscriberId, startTime, endTime);
-                NetworkStats.Bucket mobileBucket = new NetworkStats.Bucket();
-                while (mobileStats.hasNextBucket()) {
-                    mobileStats.getNextBucket(mobileBucket);
-                    mobileRx += mobileBucket.getRxBytes();
-                    mobileTx += mobileBucket.getTxBytes();
-                }
-                mobileStats.close();
+            NetworkStats.Bucket mobileBucket = nsm.querySummaryForDevice(
+                    ConnectivityManager.TYPE_MOBILE,
+                    null,
+                    startTime, endTime);
+            if (mobileBucket != null) {
+                mobileRx = mobileBucket.getRxBytes();
+                mobileTx = mobileBucket.getTxBytes();
             }
 
             long wifiTotal = wifiRx + wifiTx;
@@ -330,6 +303,93 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
     }
 
     /**
+     * Add tethering usage as an app entry to the app list.
+     */
+    private void addTetheringUsageToAppList(List<JSONObject> appUsages, NetworkStatsManager nsm,
+            long startTime, long endTime) {
+        try {
+            long[] tetheringUsage = getTetheringUsage(nsm, startTime, endTime,
+                    null);
+            long wifiRx = tetheringUsage[0];
+            long wifiTx = tetheringUsage[1];
+            long mobileRx = tetheringUsage[2];
+            long mobileTx = tetheringUsage[3];
+            long tetherTotal = wifiRx + wifiTx + mobileRx + mobileTx;
+
+            if (tetherTotal > 0) {
+                JSONObject tetheringData = new JSONObject();
+                tetheringData.put("packageName", "com.android.tethering");
+                tetheringData.put("appName", "Tethering / Hotspot");
+                tetheringData.put("icon", (String) null);
+                tetheringData.put("uid", -1);
+
+                JSONObject wifi = new JSONObject();
+                wifi.put("rx", wifiRx);
+                wifi.put("tx", wifiTx);
+                wifi.put("total", wifiRx + wifiTx);
+
+                JSONObject mobile = new JSONObject();
+                mobile.put("rx", mobileRx);
+                mobile.put("tx", mobileTx);
+                mobile.put("total", mobileRx + mobileTx);
+
+                tetheringData.put("wifi", wifi);
+                tetheringData.put("mobile", mobile);
+                tetheringData.put("totalBytes", tetherTotal);
+
+                appUsages.add(tetheringData);
+            }
+        } catch (Exception e) {
+            Log.w("NetworkUsage", "Error getting tethering usage: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get total tethering (hotspot) data usage.
+     * Returns [wifiRx, wifiTx, mobileRx, mobileTx]
+     */
+    private long[] getTetheringUsage(NetworkStatsManager nsm, long startTime, long endTime, String subscriberId) {
+        long wifiRx = 0, wifiTx = 0;
+        long mobileRx = 0, mobileTx = 0;
+
+        // Query WiFi tethering usage
+        try {
+            NetworkStats wifiStats = nsm.queryDetailsForUid(
+                    ConnectivityManager.TYPE_WIFI, "", startTime, endTime,
+                    NetworkStats.Bucket.UID_TETHERING);
+            NetworkStats.Bucket bucket = new NetworkStats.Bucket();
+            while (wifiStats.hasNextBucket()) {
+                wifiStats.getNextBucket(bucket);
+                wifiRx += bucket.getRxBytes();
+                wifiTx += bucket.getTxBytes();
+            }
+            wifiStats.close();
+        } catch (Exception e) {
+            Log.w("NetworkUsage", "Error querying WiFi tethering: " + e.getMessage());
+        }
+
+        // Query mobile tethering usage (if subscriberId is available)
+        try {
+            NetworkStats mobileStats = nsm.queryDetailsForUid(
+                    ConnectivityManager.TYPE_MOBILE,
+                    null,
+                    startTime, endTime,
+                    NetworkStats.Bucket.UID_TETHERING);
+            NetworkStats.Bucket bucket = new NetworkStats.Bucket();
+            while (mobileStats.hasNextBucket()) {
+                mobileStats.getNextBucket(bucket);
+                mobileRx += bucket.getRxBytes();
+                mobileTx += bucket.getTxBytes();
+            }
+            mobileStats.close();
+        } catch (Exception e) {
+            Log.w("NetworkUsage", "Error querying mobile tethering: " + e.getMessage());
+        }
+
+        return new long[] { wifiRx, wifiTx, mobileRx, mobileTx };
+    }
+
+    /**
      * Calculates start/end time for given period and count.
      */
     private long[] getTimeRange(String period, int count) {
@@ -338,7 +398,13 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
 
         switch (period) {
             case "day":
-                cal.add(Calendar.DAY_OF_MONTH, -count);
+                // For day period, start from midnight (00:00) of the day
+                // count=1: today's midnight, count=2: yesterday's midnight, etc.
+                cal.add(Calendar.DAY_OF_MONTH, -(count - 1));
+                cal.set(Calendar.HOUR_OF_DAY, 0);
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
                 break;
             case "week":
                 cal.add(Calendar.WEEK_OF_YEAR, -count);
