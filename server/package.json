@@ -7,20 +7,35 @@
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "dotenv": "^16.4.5",
+    "@types/connect-pg-simple": "^7.0.3",
+    "@types/express-session": "^1.18.2",
+    "@types/qrcode": "^1.5.6",
+    "bcryptjs": "^3.0.3",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.44.7",
     "express": "^4.19.2",
+    "express-session": "^1.18.2",
     "morgan": "^1.10.0",
+    "postgres": "^3.4.7",
+    "qrcode": "^1.5.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/express": "^4.17.21",
     "@types/morgan": "^1.9.6",
     "@types/node": "^22.5.0",
-    "nodemon": "^3.1.9",
+    "drizzle-kit": "^0.31.6",
     "eslint": "^9.11.0",
+    "nodemon": "^3.1.9",
     "tsx": "^4.19.0",
     "typescript": "^5.6.2"
   }

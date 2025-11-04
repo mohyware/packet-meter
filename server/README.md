@@ -1,33 +1,42 @@
-# PacketPilot TypeScript Server
+# PacketPilot Server
 
-Minimal Node.js TypeScript server that accepts traffic reports from the PacketPilot daemon.
+Central Node.js TypeScript server with PostgreSQL + Drizzle ORM for managing users, devices, and network usage reports.
 
-## Run
+## Features
 
-```bash
-cd server-ts
-npm install
-# or: pnpm i / yarn
+- **User Management**: Registration and login with session-based authentication
+- **Device Management**: Create devices, generate activation tokens with QR codes
+- **Device Activation**: Devices activate on first health check
+- **Usage Reports**: Store and retrieve network traffic data per device
+- **Database**: PostgreSQL with Drizzle ORM for type-safe queries
 
-# dev mode (autoreload)
-PACKETPILOT_API_KEY=supersecret npm run dev
+## Prerequisites
 
-# or build and start
-npm run build
-PACKETPILOT_API_KEY=supersecret npm start
-```
+- Node.js (v18+)
+- PostgreSQL database
 
-## Endpoint
+## Setup
 
-- POST `/api/v1/traffic/report`
-  - Auth: `Authorization: Bearer <PACKETPILOT_API_KEY>`
-  - Body: JSON
+For detailed setup instructions, you can find more in [SETUP.md](./SETUP.md).
 
-## Healthcheck
+## Database Schema
 
-- GET `/health` -> `{ ok: true }`
+- **users**: User accounts
+- **sessions**: Active user sessions
+- **devices**: User devices with activation tokens
+- **reports**: Daily usage reports per device
+- **interfaces**: Per-interface statistics for each report
 
-## Environment
+## Device Activation Flow
 
-- `PACKETPILOT_API_KEY` (required)
-- `PACKETPILOT_SERVER_PORT` (optional, default 8080)
+1. User creates a device via `/api/v1/devices`
+2. Server generates a unique 64-character hex token and QR code
+3. Token is hashed and stored in database
+4. Device is created with `isActivated: false`
+5. Device uses token to call `/api/v1/device/health-check`
+6. Device is marked as `activated`
+7. Device can now submit traffic reports using the same token
+
+## TODOs:
+1. Add other check from user in setup 5
+2. Refactors
