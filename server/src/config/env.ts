@@ -24,3 +24,4 @@ export const PORT = process.env.PACKETPILOT_SERVER_PORT
     ? parseInt(process.env.PACKETPILOT_SERVER_PORT, 10)
     : 8080;
 export const NODE_ENV = process.env.NODE_ENV || 'development';
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';

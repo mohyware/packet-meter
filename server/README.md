@@ -4,11 +4,12 @@ Central Node.js TypeScript server with PostgreSQL + Drizzle ORM for managing use
 
 ## Features
 
-- **User Management**: Registration and login with session-based authentication
+- **User Management**: Google OAuth authentication with session-based sessions
 - **Device Management**: Create devices, generate activation tokens with QR codes
 - **Device Activation**: Devices activate on first health check
 - **Usage Reports**: Store and retrieve network traffic data per device
 - **Database**: PostgreSQL with Drizzle ORM for type-safe queries
+- **CORS**: Configured for frontend access
 
 ## Prerequisites
 

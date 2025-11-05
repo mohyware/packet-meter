@@ -3,9 +3,10 @@ import express, { Request, Response } from 'express';
 import morgan from 'morgan';
 import session from 'express-session';
 import connectPg from 'connect-pg-simple';
+import cors from 'cors';
 import { z } from 'zod';
 import QRCode from 'qrcode';
-import postgres from 'postgres';
+import { Pool } from 'pg';
 import { requireAuth, requireDeviceAuth } from './middleware/auth';
 import * as userService from './services/user.service';
 import * as deviceService from './services/device.service';
@@ -13,15 +14,28 @@ import './db'; // Initialize database connection
 
 const app = express();
 
+// CORS configuration
+app.use(cors({
+  origin: NODE_ENV === 'production'
+    ? process.env.FRONTEND_URL || 'http://localhost:3000'
+    : 'http://localhost:3000',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 
 // Session configuration with PostgreSQL store
+// connect-pg-simple requires the 'pg' package, not 'postgres'
 const PgSession = connectPg(session);
-const pgPool = postgres(DATABASE_URL);
+const pgPool = new Pool({
+  connectionString: DATABASE_URL,
+});
 const sessionStore = new PgSession({
-  pool: pgPool as any,
+  pool: pgPool,
   tableName: 'session',
   createTableIfMissing: true,
 });
@@ -34,6 +48,7 @@ app.use(session({
   cookie: {
     secure: NODE_ENV === 'production',
     httpOnly: true,
+    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
   },
 }));
@@ -55,6 +70,10 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+});
+
+const googleAuthSchema = z.object({
+  token: z.string().min(1),
 });
 
 const createDeviceSchema = z.object({
@@ -177,6 +196,73 @@ app.post('/api/v1/auth/logout', requireAuth, async (req: Request, res: Response)
   } catch (error: any) {
     console.error('Logout error:', error);
     return res.status(500).json({ success: false, message: 'internal server error' });
+  }
+});
+
+/**
+ * POST /api/v1/auth/google
+ * Login or register with Google OAuth
+ */
+app.post('/api/v1/auth/google', async (req: Request, res: Response) => {
+  try {
+    const parse = googleAuthSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'invalid payload',
+        error: parse.error.flatten()
+      });
+    }
+
+    const user = await userService.loginOrRegisterWithGoogle(parse.data.token);
+
+    // Store userId in session
+    req.session!.userId = user.id;
+
+    // Explicitly save the session
+    await new Promise<void>((resolve, reject) => {
+      req.session!.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+
+    return res.json({
+      success: true,
+      message: 'login successful',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      },
+    });
+  } catch (error: any) {
+    console.error('Google auth error:', error);
+    console.error('Error stack:', error.stack);
+
+    // Handle specific error cases
+    if (error.message?.includes('GOOGLE_CLIENT_ID is not configured')) {
+      return res.status(500).json({
+        success: false,
+        message: 'Google OAuth not configured. Please set GOOGLE_CLIENT_ID in environment variables.'
+      });
+    }
+
+    if (error.message?.includes('Failed to verify Google token') ||
+      error.message?.includes('invalid google token') ||
+      error.message?.includes('Failed to fetch user info from Google')) {
+      return res.status(401).json({
+        success: false,
+        message: 'invalid google token',
+        error: error.message
+      });
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: 'internal server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
