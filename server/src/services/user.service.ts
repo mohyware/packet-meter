@@ -8,11 +8,13 @@ export interface RegisterInput {
   username: string;
   email: string;
   password: string;
+  timezone?: string;
 }
 
 export interface LoginInput {
   username: string;
   password: string;
+  timezone?: string;
 }
 
 /**
@@ -37,6 +39,7 @@ export async function registerUser(input: RegisterInput) {
     username: input.username,
     email: input.email,
     passwordHash,
+    timezone: input.timezone || 'UTC',
   }).returning();
 
   return {
@@ -62,6 +65,22 @@ export async function verifyUser(input: LoginInput): Promise<typeof users.$infer
   const isValid = await verifyPassword(input.password, user.passwordHash);
   if (!isValid) {
     return null;
+  }
+
+  // If timezone is provided and user doesn't have one set (or is UTC), update it
+  if (input.timezone && (user.timezone === 'UTC' || !user.timezone)) {
+    await db.update(users)
+      .set({
+        timezone: input.timezone,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+
+    const updatedUser = await db.query.users.findFirst({
+      where: eq(users.id, user.id),
+    });
+
+    return updatedUser || user;
   }
 
   return user;
@@ -144,7 +163,7 @@ export async function verifyGoogleToken(token: string): Promise<{
 /**
  * Login or register user with Google OAuth
  */
-export async function loginOrRegisterWithGoogle(token: string) {
+export async function loginOrRegisterWithGoogle(token: string, timezone?: string) {
   // Verify Google token
   const googleUser = await verifyGoogleToken(token);
 
@@ -154,25 +173,34 @@ export async function loginOrRegisterWithGoogle(token: string) {
   });
 
   if (!user) {
-    // Create new user - use email prefix as username, generate a dummy password hash
-    // For Google OAuth users, we'll use a special password hash that can't be used for login
     const dummyPasswordHash = await hashPassword(`google_oauth_${googleUser.sub}_${Date.now()}`);
 
-    // Generate unique username from email if needed
-    let username = googleUser.email.split('@')[0];
-    let counter = 1;
-    while (await db.query.users.findFirst({ where: eq(users.username, username) })) {
-      username = `${googleUser.email.split('@')[0]}${counter}`;
-      counter++;
-    }
+    let username = googleUser.name
+      .substring(0, 100);
 
     const [newUser] = await db.insert(users).values({
       username,
       email: googleUser.email,
       passwordHash: dummyPasswordHash,
+      timezone: timezone || 'UTC',
     }).returning();
 
     user = newUser;
+  } else {
+    // If timezone is provided and user doesn't have one set (or is UTC), update it
+    if (timezone && (user.timezone === 'UTC' || !user.timezone)) {
+      await db.update(users)
+        .set({
+          timezone,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+
+      const updatedUser = await db.query.users.findFirst({
+        where: eq(users.id, user.id),
+      });
+      if (updatedUser) user = updatedUser;
+    }
   }
 
   return {
@@ -181,5 +209,29 @@ export async function loginOrRegisterWithGoogle(token: string) {
     email: user.email,
     createdAt: user.createdAt,
   };
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserById(userId: string) {
+  return db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+}
+
+/**
+ * Update user timezone
+ */
+export async function updateUserTimezone(userId: string, timezone: string) {
+  const [updatedUser] = await db.update(users)
+    .set({
+      timezone,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId))
+    .returning();
+
+  return updatedUser;
 }
 

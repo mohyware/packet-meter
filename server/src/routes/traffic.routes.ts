@@ -1,7 +1,10 @@
 import { Router, Request, Response } from 'express';
+import { eq } from 'drizzle-orm';
 import * as deviceService from '../services/device.service';
 import { requireDeviceAuth } from '../middleware/auth';
 import { dailyUsageReportSchema } from './validation';
+import { getDateInTimezone } from '../utils/timezone';
+import { db, users } from '../db';
 
 const router = Router();
 
@@ -41,12 +44,22 @@ router.post('/report', requireDeviceAuth, async (req: Request, res: Response) =>
 
         const report = parse.data;
 
-        // Use device.id from token lookup (not from payload)
-        // Create report in database
+        // Get user timezone from device
+        const user = await db.query.users.findFirst({
+            where: eq(users.id, device.userId),
+        });
+
+        const userTimezone = user?.timezone || 'UTC';
+
+        // Convert the timestamp to user's timezone and get the date
+        const timestampDate = new Date(report.Timestamp);
+        const dateInUserTimezone = getDateInTimezone(timestampDate, userTimezone);
+
+        // Create report in database with date in user's timezone
         await deviceService.createUsageReport({
             deviceId: device.id,
-            timestamp: new Date(report.Timestamp),
-            date: report.Date,
+            timestamp: timestampDate,
+            date: dateInUserTimezone, // Use date in user's timezone instead of device's date
             interfaces: report.Interfaces.map(iface => ({
                 name: iface.Interface,
                 totalRx: iface.TotalRx,

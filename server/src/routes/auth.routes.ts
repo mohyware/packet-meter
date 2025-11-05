@@ -116,7 +116,7 @@ router.post('/google', async (req: Request, res: Response) => {
             });
         }
 
-        const user = await userService.loginOrRegisterWithGoogle(parse.data.token);
+        const user = await userService.loginOrRegisterWithGoogle(parse.data.token, parse.data.timezone);
 
         // Store userId in session
         req.session!.userId = user.id;
@@ -174,13 +174,50 @@ router.post('/google', async (req: Request, res: Response) => {
  */
 router.get('/me', requireAuth, async (req: Request, res: Response) => {
     try {
-        // User info is available from session
+        const user = await userService.getUserById(req.userId!);
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'user not found' });
+        }
         return res.json({
             success: true,
-            userId: req.userId,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                timezone: user.timezone,
+            },
         });
     } catch (error: any) {
         console.error('Get user error:', error);
+        return res.status(500).json({ success: false, message: 'internal server error' });
+    }
+});
+
+/**
+ * TODO: We need to add this as optional in the frontend.
+ * PUT /api/v1/auth/timezone
+ * Update user timezone
+ */
+router.put('/timezone', requireAuth, async (req: Request, res: Response) => {
+    try {
+        const { timezone } = req.body;
+        if (!timezone || typeof timezone !== 'string') {
+            return res.status(400).json({ success: false, message: 'timezone is required' });
+        }
+
+        const updated = await userService.updateUserTimezone(req.userId!, timezone);
+        return res.json({
+            success: true,
+            message: 'timezone updated',
+            user: {
+                id: updated.id,
+                username: updated.username,
+                email: updated.email,
+                timezone: updated.timezone,
+            },
+        });
+    } catch (error: any) {
+        console.error('Update timezone error:', error);
         return res.status(500).json({ success: false, message: 'internal server error' });
     }
 });

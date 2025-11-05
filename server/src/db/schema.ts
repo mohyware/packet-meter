@@ -20,9 +20,10 @@ export const reports = pgTable('reports', {
 // Users table
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  username: varchar('username', { length: 100 }).notNull().unique(),
+  username: varchar('username', { length: 100 }).notNull(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
+  timezone: varchar('timezone', { length: 50 }).default('UTC').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

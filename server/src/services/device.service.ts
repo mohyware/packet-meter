@@ -164,13 +164,15 @@ export async function createUsageReport(data: {
     where: and(
       eq(reports.deviceId, data.deviceId),
       eq(reports.date, data.date)
+      // TODO: Currently we group by local-day. In the future, switch to grouping by UTC hour
+      // and calculate the user's local timezone on read, so users can change their timezone
+      // and still see correct daily results.
     ),
   });
 
   let report;
 
   if (existingReport) {
-    // Update existing report
     const [updatedReport] = await db.update(reports)
       .set({
         timestamp: data.timestamp,
@@ -183,7 +185,6 @@ export async function createUsageReport(data: {
 
     report = updatedReport;
   } else {
-    // Create new report
     const [newReport] = await db.insert(reports).values({
       deviceId: data.deviceId,
       timestamp: data.timestamp,
@@ -197,7 +198,6 @@ export async function createUsageReport(data: {
 
   // Create/update interfaces (one per report per name)
   for (const iface of data.interfaces) {
-    // Check if interface exists for this report and name
     const existingInterface = await db.query.interfaces.findFirst({
       where: and(
         eq(interfaces.reportId, report.id),
@@ -206,7 +206,6 @@ export async function createUsageReport(data: {
     });
 
     if (existingInterface) {
-      // Update existing interface
       await db.update(interfaces)
         .set({
           totalRx: iface.totalRx.toString(),
@@ -216,7 +215,6 @@ export async function createUsageReport(data: {
         })
         .where(eq(interfaces.id, existingInterface.id));
     } else {
-      // Create new interface
       await db.insert(interfaces).values({
         deviceId: data.deviceId,
         reportId: report.id,

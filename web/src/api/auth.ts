@@ -12,7 +12,23 @@ export interface GoogleAuthResponse {
 
 export interface UserInfo {
     success: boolean
-    userId: string
+    user?: {
+        id: string
+        username: string
+        email: string
+        timezone: string
+    }
+}
+
+/**
+ * Get user's timezone from browser
+ */
+function getUserTimezone(): string {
+    try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone
+    } catch {
+        return 'UTC'
+    }
 }
 
 export const authApi = {
@@ -20,9 +36,10 @@ export const authApi = {
      * Authenticate with Google OAuth access token
      */
     loginWithGoogle: async (accessToken: string): Promise<GoogleAuthResponse> => {
+        const timezone = getUserTimezone()
         const { data } = await apiClient.post<GoogleAuthResponse>(
             '/api/v1/auth/google',
-            { token: accessToken }
+            { token: accessToken, timezone }
         )
         return data
     },
