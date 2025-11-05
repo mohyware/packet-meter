@@ -8,6 +8,7 @@ const router = Router();
 /**
  * POST /api/v1/traffic/report
  * Submit a daily usage report from device
+ * Requires: Valid device token AND device must be activated
  */
 router.post('/report', requireDeviceAuth, async (req: Request, res: Response) => {
     try {
@@ -27,6 +28,15 @@ router.post('/report', requireDeviceAuth, async (req: Request, res: Response) =>
 
         if (!device) {
             return res.status(401).json({ success: false, message: 'invalid device token' });
+        }
+
+        // Check if device is activated - require activation before allowing traffic reports
+        if (!device.isActivated) {
+            return res.status(403).json({
+                success: false,
+                message: 'device_not_activated',
+                error: 'Device must be approved and activated before it can send usage reports. Please wait for user approval.'
+            });
         }
 
         const report = parse.data;

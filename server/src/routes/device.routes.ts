@@ -36,7 +36,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
                 id: device.id,
                 name: device.name,
                 isActivated: device.isActivated,
+                lastHealthCheck: device.lastHealthCheck,
                 createdAt: device.createdAt,
+                status: 'pending' as const, // New device is always pending
             },
             token: device.deviceToken,
             qrCode: qrCodeDataURL,
@@ -57,13 +59,26 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
         return res.json({
             success: true,
-            devices: devices.map(device => ({
-                id: device.id,
-                name: device.name,
-                isActivated: device.isActivated,
-                lastHealthCheck: device.lastHealthCheck,
-                createdAt: device.createdAt,
-            })),
+            devices: devices.map(device => {
+                // Determine status: pending, pendingApproval, or active
+                let status: 'pending' | 'pendingApproval' | 'active';
+                if (device.isActivated) {
+                    status = 'active';
+                } else if (device.lastHealthCheck) {
+                    status = 'pendingApproval'; // Device has pinged, waiting for approval
+                } else {
+                    status = 'pending'; // Device created but hasn't pinged yet
+                }
+
+                return {
+                    id: device.id,
+                    name: device.name,
+                    isActivated: device.isActivated,
+                    lastHealthCheck: device.lastHealthCheck,
+                    createdAt: device.createdAt,
+                    status, // Add status field
+                };
+            }),
         });
     } catch (error: any) {
         console.error('Get devices error:', error);
@@ -97,6 +112,7 @@ router.post('/:deviceId/activate', requireAuth, async (req: Request, res: Respon
                 isActivated: updated.isActivated,
                 lastHealthCheck: updated.lastHealthCheck,
                 createdAt: updated.createdAt,
+                status: 'active' as const, // Device is now active
             }
         });
     } catch (error: any) {

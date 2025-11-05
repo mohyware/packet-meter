@@ -71,6 +71,9 @@ namespace PacketPilot.Daemon.Win.Reporter
                 "server", $"{_config.ServerHost}:{_config.ServerPort}",
                 "interval", _config.ReportInterval);
 
+            // Send initial health check when starting
+            await SendHealthCheckAsync();
+
             var interval = ParseTimeSpan(_config.ReportInterval);
             using var timer = new PeriodicTimer(interval);
 
@@ -98,6 +101,40 @@ namespace PacketPilot.Daemon.Win.Reporter
         {
             _cancellationTokenSource?.Cancel();
             _cancellationTokenSource?.Dispose();
+        }
+
+        private async Task<bool> SendHealthCheckAsync()
+        {
+            var protocol = _config.UseTls ? "https" : "http";
+            var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/device/health-check";
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
+                request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
+
+                _logger.Debug("Sending health check", "url", url);
+
+                using var response = await _httpClient.SendAsync(request, _cancellationTokenSource?.Token ?? CancellationToken.None);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    _logger.Info("Health check sent successfully", "message", responseContent);
+                    return true;
+                }
+                else
+                {
+                    _logger.Warn("Health check failed", "status", (int)response.StatusCode);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Health check error", "error", ex.Message);
+                return false;
+            }
         }
 
         private async Task SendReportAsync()
@@ -191,6 +228,20 @@ namespace PacketPilot.Daemon.Win.Reporter
                         }
 
                         return;
+                    }
+                    else if (response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                    {
+                        // Device not activated - send health check to notify user
+                        var responseContent = await response.Content.ReadAsStringAsync();
+                        _logger.Warn("Device not activated - traffic report rejected",
+                            "status", (int)response.StatusCode,
+                            "message", responseContent);
+
+                        // Send health check to update lastHealthCheck so user sees approval needed
+                        await SendHealthCheckAsync();
+
+                        lastException = new HttpRequestException($"Device not activated. Please wait for user approval.");
+                        _logger.Info("Health check sent to notify user that device needs approval");
                     }
                     else
                     {

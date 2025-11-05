@@ -7,10 +7,18 @@ export const useDevices = () => {
     const { data, isLoading, error } = useQuery({
         queryKey: ['devices'],
         queryFn: () => devicesApi.getDevices(),
+        refetchInterval: 5000, // Poll every 5 seconds to detect device pings
     })
 
     const createDeviceMutation = useMutation({
         mutationFn: (name: string) => devicesApi.createDevice(name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['devices'] })
+        },
+    })
+
+    const activateDeviceMutation = useMutation({
+        mutationFn: (deviceId: string) => devicesApi.activateDevice(deviceId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['devices'] })
         },
@@ -23,6 +31,9 @@ export const useDevices = () => {
         createDevice: createDeviceMutation.mutate,
         createDeviceAsync: createDeviceMutation.mutateAsync,
         isCreating: createDeviceMutation.isPending,
+        activateDevice: activateDeviceMutation.mutate,
+        activateDeviceAsync: activateDeviceMutation.mutateAsync,
+        isActivating: activateDeviceMutation.isPending,
     }
 }
 

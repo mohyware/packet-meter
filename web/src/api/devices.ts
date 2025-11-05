@@ -6,6 +6,7 @@ export interface Device {
     isActivated: boolean
     lastHealthCheck: string | null
     createdAt: string
+    status: 'pending' | 'pendingApproval' | 'active'
 }
 
 export interface CreateDeviceRequest {
@@ -82,6 +83,18 @@ export const devicesApi = {
         const { data } = await apiClient.get<DeviceUsageResponse>(
             `/api/v1/devices/${deviceId}/usage`,
             { params: { limit } }
+        )
+        return data
+    },
+
+    /**
+     * Activate a device (after user approves)
+     */
+    activateDevice: async (
+        deviceId: string
+    ): Promise<{ success: boolean; message: string; device: Device }> => {
+        const { data } = await apiClient.post<{ success: boolean; message: string; device: Device }>(
+            `/api/v1/devices/${deviceId}/activate`
         )
         return data
     },
