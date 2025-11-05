@@ -36,10 +36,3 @@ export async function verifyDeviceToken(token: string, hash: string): Promise<bo
   return bcrypt.compare(token, hash);
 }
 
-/**
- * Generate a random session token
- */
-export function generateSessionToken(): string {
-  return crypto.randomBytes(32).toString('hex');
-}
-

@@ -23,14 +23,13 @@ export async function createDevice(input: CreateDeviceInput) {
   const [device] = await db.insert(devices).values({
     userId: input.userId,
     name: input.name,
-    deviceToken,
     deviceTokenHash,
     isActivated: false,
   }).returning();
 
   return {
     ...device,
-    // Only return the plain token on creation
+    // Only return the plain token on creation (not stored in DB)
     deviceToken,
   };
 }
@@ -75,6 +74,15 @@ export async function activateDevice(deviceId: string) {
     .returning();
 
   return updatedDevice;
+}
+
+/**
+ * Get device by id
+ */
+export async function getDeviceById(deviceId: string) {
+  return db.query.devices.findFirst({
+    where: eq(devices.id, deviceId),
+  });
 }
 
 /**
@@ -135,7 +143,7 @@ export async function getDeviceReports(deviceId: string, limit = 100) {
 }
 
 /**
- * Create a usage report
+ * Create or update a usage report (one per device per day)
  */
 export async function createUsageReport(data: {
   deviceId: string;
@@ -151,27 +159,75 @@ export async function createUsageReport(data: {
   totalRxMB: number;
   totalTxMB: number;
 }) {
-  // Create report
-  const [report] = await db.insert(reports).values({
-    deviceId: data.deviceId,
-    timestamp: data.timestamp,
-    date: data.date,
-    totalRxMB: data.totalRxMB.toString(),
-    totalTxMB: data.totalTxMB.toString(),
-  }).returning();
+  // Check if report exists for this device and date
+  const existingReport = await db.query.reports.findFirst({
+    where: and(
+      eq(reports.deviceId, data.deviceId),
+      eq(reports.date, data.date)
+    ),
+  });
 
-  // Create interfaces
-  const interfaceInserts = data.interfaces.map(iface => ({
-    deviceId: data.deviceId,
-    reportId: report.id,
-    name: iface.name,
-    totalRx: iface.totalRx.toString(),
-    totalTx: iface.totalTx.toString(),
-    totalRxMB: iface.totalRxMB.toString(),
-    totalTxMB: iface.totalTxMB.toString(),
-  }));
+  let report;
 
-  await db.insert(interfaces).values(interfaceInserts);
+  if (existingReport) {
+    // Update existing report
+    const [updatedReport] = await db.update(reports)
+      .set({
+        timestamp: data.timestamp,
+        totalRxMB: data.totalRxMB.toString(),
+        totalTxMB: data.totalTxMB.toString(),
+        updatedAt: new Date(),
+      })
+      .where(eq(reports.id, existingReport.id))
+      .returning();
+
+    report = updatedReport;
+  } else {
+    // Create new report
+    const [newReport] = await db.insert(reports).values({
+      deviceId: data.deviceId,
+      timestamp: data.timestamp,
+      date: data.date,
+      totalRxMB: data.totalRxMB.toString(),
+      totalTxMB: data.totalTxMB.toString(),
+    }).returning();
+
+    report = newReport;
+  }
+
+  // Create/update interfaces (one per report per name)
+  for (const iface of data.interfaces) {
+    // Check if interface exists for this report and name
+    const existingInterface = await db.query.interfaces.findFirst({
+      where: and(
+        eq(interfaces.reportId, report.id),
+        eq(interfaces.name, iface.name)
+      ),
+    });
+
+    if (existingInterface) {
+      // Update existing interface
+      await db.update(interfaces)
+        .set({
+          totalRx: iface.totalRx.toString(),
+          totalTx: iface.totalTx.toString(),
+          totalRxMB: iface.totalRxMB.toString(),
+          totalTxMB: iface.totalTxMB.toString(),
+        })
+        .where(eq(interfaces.id, existingInterface.id));
+    } else {
+      // Create new interface
+      await db.insert(interfaces).values({
+        deviceId: data.deviceId,
+        reportId: report.id,
+        name: iface.name,
+        totalRx: iface.totalRx.toString(),
+        totalTx: iface.totalTx.toString(),
+        totalRxMB: iface.totalRxMB.toString(),
+        totalTxMB: iface.totalTxMB.toString(),
+      });
+    }
+  }
 
   return report;
 }
