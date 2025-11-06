@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 
-// Extend Express Request to include userId
+// Extend Express Request
 declare global {
+  // TODO
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       userId?: string;
       sessionId?: string;
+      deviceToken?: string;
     }
   }
 }
@@ -28,16 +31,23 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 /**
  * Middleware for device authentication using bearer token
  */
-export async function requireDeviceAuth(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.header('Authorization') || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : '';
+export function requireDeviceAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const authHeader = req.header('Authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ')
+    ? authHeader.slice('Bearer '.length)
+    : '';
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'unauthorized - no token provided' });
+    return res
+      .status(401)
+      .json({ success: false, message: 'unauthorized - no token provided' });
   }
 
   // Attach token to request for use in route handlers
-  (req as any).deviceToken = token;
+  req.deviceToken = token;
   next();
 }
-

@@ -7,8 +7,7 @@ const router = Router();
  * Server health check
  */
 router.get('/', (_req: Request, res: Response) => {
-    res.json({ ok: true });
+  res.json({ ok: true });
 });
 
 export default router;
-

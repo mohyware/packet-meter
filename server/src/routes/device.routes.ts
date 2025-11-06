@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 import * as deviceService from '../services/device.service';
 import { requireAuth } from '../middleware/auth';
 import { createDeviceSchema } from './validation';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -11,42 +12,44 @@ const router = Router();
  * Create a new device
  */
 router.post('/', requireAuth, async (req: Request, res: Response) => {
-    try {
-        const parse = createDeviceSchema.safeParse(req.body);
-        if (!parse.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'invalid payload',
-                error: parse.error.flatten()
-            });
-        }
-
-        const device = await deviceService.createDevice({
-            userId: req.userId!,
-            name: parse.data.name,
-        });
-
-        // Generate QR code
-        const qrCodeDataURL = await QRCode.toDataURL(device.deviceToken);
-
-        return res.json({
-            success: true,
-            message: 'device created',
-            device: {
-                id: device.id,
-                name: device.name,
-                isActivated: device.isActivated,
-                lastHealthCheck: device.lastHealthCheck,
-                createdAt: device.createdAt,
-                status: 'pending' as const, // New device is always pending
-            },
-            token: device.deviceToken,
-            qrCode: qrCodeDataURL,
-        });
-    } catch (error: any) {
-        console.error('Create device error:', error);
-        return res.status(500).json({ success: false, message: 'internal server error' });
+  try {
+    const parse = createDeviceSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'invalid payload',
+        error: parse.error.flatten(),
+      });
     }
+
+    const device = await deviceService.createDevice({
+      userId: req.userId!,
+      name: parse.data.name,
+    });
+
+    // Generate QR code
+    const qrCodeDataURL = await QRCode.toDataURL(device.deviceToken);
+
+    return res.json({
+      success: true,
+      message: 'device created',
+      device: {
+        id: device.id,
+        name: device.name,
+        isActivated: device.isActivated,
+        lastHealthCheck: device.lastHealthCheck,
+        createdAt: device.createdAt,
+        status: 'pending' as const, // New device is always pending
+      },
+      token: device.deviceToken,
+      qrCode: qrCodeDataURL,
+    });
+  } catch (error: unknown) {
+    logger.error('Create device error:', error);
+    return res
+      .status(500)
+      .json({ success: false, message: 'internal server error' });
+  }
 });
 
 /**
@@ -54,93 +57,112 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
  * Get all user devices
  */
 router.get('/', requireAuth, async (req: Request, res: Response) => {
-    try {
-        const devices = await deviceService.getUserDevices(req.userId!);
+  try {
+    const devices = await deviceService.getUserDevices(req.userId!);
 
-        return res.json({
-            success: true,
-            devices: devices.map(device => {
-                // Determine status: pending, pendingApproval, or active
-                let status: 'pending' | 'pendingApproval' | 'active';
-                if (device.isActivated) {
-                    status = 'active';
-                } else if (device.lastHealthCheck) {
-                    status = 'pendingApproval'; // Device has pinged, waiting for approval
-                } else {
-                    status = 'pending'; // Device created but hasn't pinged yet
-                }
+    return res.json({
+      success: true,
+      devices: devices.map((device) => {
+        // Determine status: pending, pendingApproval, or active
+        let status: 'pending' | 'pendingApproval' | 'active';
+        if (device.isActivated) {
+          status = 'active';
+        } else if (device.lastHealthCheck) {
+          status = 'pendingApproval'; // Device has pinged, waiting for approval
+        } else {
+          status = 'pending'; // Device created but hasn't pinged yet
+        }
 
-                return {
-                    id: device.id,
-                    name: device.name,
-                    isActivated: device.isActivated,
-                    lastHealthCheck: device.lastHealthCheck,
-                    createdAt: device.createdAt,
-                    status, // Add status field
-                };
-            }),
-        });
-    } catch (error: any) {
-        console.error('Get devices error:', error);
-        return res.status(500).json({ success: false, message: 'internal server error' });
-    }
+        return {
+          id: device.id,
+          name: device.name,
+          isActivated: device.isActivated,
+          lastHealthCheck: device.lastHealthCheck,
+          createdAt: device.createdAt,
+          status, // Add status field
+        };
+      }),
+    });
+  } catch (error: unknown) {
+    logger.error('Get devices error:', error);
+    return res
+      .status(500)
+      .json({ success: false, message: 'internal server error' });
+  }
 });
 
 /**
  * POST /api/v1/devices/:deviceId/activate
  * Activate a device after user approval
  */
-router.post('/:deviceId/activate', requireAuth, async (req: Request, res: Response) => {
+router.post(
+  '/:deviceId/activate',
+  requireAuth,
+  async (req: Request, res: Response) => {
     try {
-        const deviceId = req.params.deviceId;
-        const device = await deviceService.getDeviceById(deviceId);
+      const deviceId = req.params.deviceId;
+      const device = await deviceService.getDeviceById(deviceId);
 
-        if (!device || device.userId !== req.userId) {
-            return res.status(404).json({ success: false, message: 'device not found' });
-        }
+      if (!device || device.userId !== req.userId) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'device not found' });
+      }
 
-        if (device.isActivated) {
-            return res.json({ success: true, message: 'device already activated' });
-        }
+      if (device.isActivated) {
+        return res.json({ success: true, message: 'device already activated' });
+      }
 
-        const updated = await deviceService.activateDevice(deviceId);
+      const updated = await deviceService.activateDevice(deviceId);
 
-        return res.json({
-            success: true, message: 'device activated', device: {
-                id: updated.id,
-                name: updated.name,
-                isActivated: updated.isActivated,
-                lastHealthCheck: updated.lastHealthCheck,
-                createdAt: updated.createdAt,
-                status: 'active' as const, // Device is now active
-            }
-        });
-    } catch (error: any) {
-        console.error('Activate device error:', error);
-        return res.status(500).json({ success: false, message: 'internal server error' });
+      return res.json({
+        success: true,
+        message: 'device activated',
+        device: {
+          id: updated.id,
+          name: updated.name,
+          isActivated: updated.isActivated,
+          lastHealthCheck: updated.lastHealthCheck,
+          createdAt: updated.createdAt,
+          status: 'active' as const, // Device is now active
+        },
+      });
+    } catch (error: unknown) {
+      logger.error('Activate device error:', error);
+      return res
+        .status(500)
+        .json({ success: false, message: 'internal server error' });
     }
-});
+  }
+);
 
 /**
  * GET /api/v1/devices/:deviceId/usage
  * Get usage reports for a device
  */
-router.get('/:deviceId/usage', requireAuth, async (req: Request, res: Response) => {
+router.get(
+  '/:deviceId/usage',
+  requireAuth,
+  async (req: Request, res: Response) => {
     try {
-        const deviceId = req.params.deviceId;
-        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 100;
+      const deviceId = req.params.deviceId;
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 100;
 
-        const reports = await deviceService.getDeviceReports(deviceId, limit);
+      const reports = await deviceService.getDeviceReports(deviceId, limit);
 
-        return res.json({
-            success: true,
-            reports,
-        });
-    } catch (error: any) {
-        console.error('Get device usage error:', error);
-        return res.status(500).json({ success: false, message: 'internal server error' });
+      return res.json({
+        success: true,
+        reports,
+      });
+    } catch (error: unknown) {
+      logger.error('Get device usage error:', error);
+      return res
+        .status(500)
+        .json({ success: false, message: 'internal server error' });
     }
-});
+  }
+);
 
 export default router;
-

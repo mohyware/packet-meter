@@ -1,6 +1,10 @@
 import { eq, desc, and, InferSelectModel } from 'drizzle-orm';
-import { db, devices, reports, interfaces, Device } from '../db';
-import { generateDeviceToken, hashDeviceToken, verifyDeviceToken } from '../utils/auth';
+import { db, devices, reports, interfaces } from '../db';
+import {
+  generateDeviceToken,
+  hashDeviceToken,
+  verifyDeviceToken,
+} from '../utils/auth';
 
 export interface CreateDeviceInput {
   userId: string;
@@ -20,12 +24,15 @@ export async function createDevice(input: CreateDeviceInput) {
   const deviceToken = generateDeviceToken();
   const deviceTokenHash = await hashDeviceToken(deviceToken);
 
-  const [device] = await db.insert(devices).values({
-    userId: input.userId,
-    name: input.name,
-    deviceTokenHash,
-    isActivated: false,
-  }).returning();
+  const [device] = await db
+    .insert(devices)
+    .values({
+      userId: input.userId,
+      name: input.name,
+      deviceTokenHash,
+      isActivated: false,
+    })
+    .returning();
 
   return {
     ...device,
@@ -65,7 +72,8 @@ export async function getDeviceByToken(token: string) {
  * Activate a device
  */
 export async function activateDevice(deviceId: string) {
-  const [updatedDevice] = await db.update(devices)
+  const [updatedDevice] = await db
+    .update(devices)
     .set({
       isActivated: true,
       updatedAt: new Date(),
@@ -89,7 +97,8 @@ export async function getDeviceById(deviceId: string) {
  * Update device last health check
  */
 export async function updateDeviceHealthCheck(deviceId: string) {
-  await db.update(devices)
+  await db
+    .update(devices)
     .set({
       lastHealthCheck: new Date(),
       updatedAt: new Date(),
@@ -149,13 +158,13 @@ export async function createUsageReport(data: {
   deviceId: string;
   timestamp: Date;
   date: string;
-  interfaces: Array<{
+  interfaces: {
     name: string;
     totalRx: number;
     totalTx: number;
     totalRxMB: number;
     totalTxMB: number;
-  }>;
+  }[];
   totalRxMB: number;
   totalTxMB: number;
 }) {
@@ -164,16 +173,14 @@ export async function createUsageReport(data: {
     where: and(
       eq(reports.deviceId, data.deviceId),
       eq(reports.date, data.date)
-      // TODO: Currently we group by local-day. In the future, switch to grouping by UTC hour
-      // and calculate the user's local timezone on read, so users can change their timezone
-      // and still see correct daily results.
     ),
   });
 
   let report;
 
   if (existingReport) {
-    const [updatedReport] = await db.update(reports)
+    const [updatedReport] = await db
+      .update(reports)
       .set({
         timestamp: data.timestamp,
         totalRxMB: data.totalRxMB.toString(),
@@ -185,13 +192,16 @@ export async function createUsageReport(data: {
 
     report = updatedReport;
   } else {
-    const [newReport] = await db.insert(reports).values({
-      deviceId: data.deviceId,
-      timestamp: data.timestamp,
-      date: data.date,
-      totalRxMB: data.totalRxMB.toString(),
-      totalTxMB: data.totalTxMB.toString(),
-    }).returning();
+    const [newReport] = await db
+      .insert(reports)
+      .values({
+        deviceId: data.deviceId,
+        timestamp: data.timestamp,
+        date: data.date,
+        totalRxMB: data.totalRxMB.toString(),
+        totalTxMB: data.totalTxMB.toString(),
+      })
+      .returning();
 
     report = newReport;
   }
@@ -206,7 +216,8 @@ export async function createUsageReport(data: {
     });
 
     if (existingInterface) {
-      await db.update(interfaces)
+      await db
+        .update(interfaces)
         .set({
           totalRx: iface.totalRx.toString(),
           totalTx: iface.totalTx.toString(),
@@ -229,4 +240,3 @@ export async function createUsageReport(data: {
 
   return report;
 }
-

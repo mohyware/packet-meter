@@ -11,7 +11,10 @@ export async function hashPassword(password: string): Promise<string> {
 /**
  * Verify a password against a hash
  */
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+export async function verifyPassword(
+  password: string,
+  hash: string
+): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }
 
@@ -32,7 +35,9 @@ export async function hashDeviceToken(token: string): Promise<string> {
 /**
  * Verify a device token against a hash
  */
-export async function verifyDeviceToken(token: string, hash: string): Promise<boolean> {
+export async function verifyDeviceToken(
+  token: string,
+  hash: string
+): Promise<boolean> {
   return bcrypt.compare(token, hash);
 }
-
