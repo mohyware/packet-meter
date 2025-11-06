@@ -13,8 +13,8 @@ export default function Layout({ children }: LayoutProps) {
                 <div className="max-w-7xl mx-auto px-8 flex justify-between items-center">
                     <h1 className="text-2xl font-semibold text-gray-800">PacketPilot</h1>
                     <div className="flex items-center gap-4">
-                        {user?.userId && (
-                            <span className="text-sm text-gray-600">User: {user.userId.slice(0, 8)}...</span>
+                        {user?.user?.username && (
+                            <span className="text-sm text-gray-600">User: {user.user.username.slice(0, 8)}...</span>
                         )}
                         <button
                             onClick={() => logout()}

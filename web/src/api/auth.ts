@@ -33,13 +33,13 @@ function getUserTimezone(): string {
 
 export const authApi = {
     /**
-     * Authenticate with Google OAuth access token
+     * Authenticate with Google OAuth 
      */
-    loginWithGoogle: async (accessToken: string): Promise<GoogleAuthResponse> => {
+    loginWithGoogle: async (idToken: string): Promise<GoogleAuthResponse> => {
         const timezone = getUserTimezone()
         const { data } = await apiClient.post<GoogleAuthResponse>(
             '/api/v1/auth/google',
-            { token: accessToken, timezone }
+            { token: idToken, timezone }
         )
         return data
     },
