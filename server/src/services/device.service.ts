@@ -152,6 +152,29 @@ export async function getDeviceReports(deviceId: string, limit = 100) {
 }
 
 /**
+ * Update device name
+ */
+export async function updateDeviceName(deviceId: string, name: string) {
+  const [updatedDevice] = await db
+    .update(devices)
+    .set({
+      name,
+      updatedAt: new Date(),
+    })
+    .where(eq(devices.id, deviceId))
+    .returning();
+
+  return updatedDevice;
+}
+
+/**
+ * Delete a device (cascades to reports and interfaces)
+ */
+export async function deleteDevice(deviceId: string) {
+  await db.delete(devices).where(eq(devices.id, deviceId));
+}
+
+/**
  * Create or update a usage report (one per device per day)
  */
 export async function createUsageReport(data: {

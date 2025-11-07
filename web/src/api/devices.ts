@@ -98,5 +98,31 @@ export const devicesApi = {
         )
         return data
     },
+
+    /**
+     * Update device name
+     */
+    updateDevice: async (
+        deviceId: string,
+        name: string
+    ): Promise<{ success: boolean; message: string; device: Device }> => {
+        const { data } = await apiClient.patch<{ success: boolean; message: string; device: Device }>(
+            `/api/v1/devices/${deviceId}`,
+            { name }
+        )
+        return data
+    },
+
+    /**
+     * Delete a device
+     */
+    deleteDevice: async (
+        deviceId: string
+    ): Promise<{ success: boolean; message: string }> => {
+        const { data } = await apiClient.delete<{ success: boolean; message: string }>(
+            `/api/v1/devices/${deviceId}`
+        )
+        return data
+    },
 }
 

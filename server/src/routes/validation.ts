@@ -24,6 +24,10 @@ export const createDeviceSchema = z.object({
   name: z.string().min(1).max(255),
 });
 
+export const updateDeviceSchema = z.object({
+  name: z.string().min(1).max(255),
+});
+
 export const deviceHealthCheckSchema = z.object({
   deviceId: z.string().uuid(),
 });

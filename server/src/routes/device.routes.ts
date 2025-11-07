@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import QRCode from 'qrcode';
 import * as deviceService from '../services/device.service';
 import { requireAuth } from '../middleware/auth';
-import { createDeviceSchema } from './validation';
+import { createDeviceSchema, updateDeviceSchema } from './validation';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -158,6 +158,96 @@ router.get(
       });
     } catch (error: unknown) {
       logger.error('Get device usage error:', error);
+      return res
+        .status(500)
+        .json({ success: false, message: 'internal server error' });
+    }
+  }
+);
+
+/**
+ * PATCH /api/v1/devices/:deviceId
+ * Update device name
+ */
+router.patch('/:deviceId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const deviceId = req.params.deviceId;
+    const parse = updateDeviceSchema.safeParse(req.body);
+
+    if (!parse.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'invalid payload',
+        error: parse.error.flatten(),
+      });
+    }
+
+    const device = await deviceService.getDeviceById(deviceId);
+
+    if (!device || device.userId !== req.userId) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'device not found' });
+    }
+
+    const updated = await deviceService.updateDeviceName(deviceId, parse.data.name);
+
+    // Determine status
+    let status: 'pending' | 'pendingApproval' | 'active';
+    if (updated.isActivated) {
+      status = 'active';
+    } else if (updated.lastHealthCheck) {
+      status = 'pendingApproval';
+    } else {
+      status = 'pending';
+    }
+
+    return res.json({
+      success: true,
+      message: 'device updated',
+      device: {
+        id: updated.id,
+        name: updated.name,
+        isActivated: updated.isActivated,
+        lastHealthCheck: updated.lastHealthCheck,
+        createdAt: updated.createdAt,
+        status,
+      },
+    });
+  } catch (error: unknown) {
+    logger.error('Update device error:', error);
+    return res
+      .status(500)
+      .json({ success: false, message: 'internal server error' });
+  }
+});
+
+/**
+ * DELETE /api/v1/devices/:deviceId
+ * Delete a device
+ */
+router.delete(
+  '/:deviceId',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const deviceId = req.params.deviceId;
+      const device = await deviceService.getDeviceById(deviceId);
+
+      if (!device || device.userId !== req.userId) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'device not found' });
+      }
+
+      await deviceService.deleteDevice(deviceId);
+
+      return res.json({
+        success: true,
+        message: 'device deleted',
+      });
+    } catch (error: unknown) {
+      logger.error('Delete device error:', error);
       return res
         .status(500)
         .json({ success: false, message: 'internal server error' });

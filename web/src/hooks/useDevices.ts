@@ -24,6 +24,22 @@ export const useDevices = () => {
         },
     })
 
+    const updateDeviceMutation = useMutation({
+        mutationFn: ({ deviceId, name }: { deviceId: string; name: string }) =>
+            devicesApi.updateDevice(deviceId, name),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['devices'] })
+        },
+    })
+
+    const deleteDeviceMutation = useMutation({
+        mutationFn: (deviceId: string) => devicesApi.deleteDevice(deviceId),
+        onSuccess: (_, deviceId) => {
+            queryClient.invalidateQueries({ queryKey: ['devices'] })
+            queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'usage'] })
+        },
+    })
+
     return {
         devices: data?.devices || [],
         isLoading,
@@ -34,6 +50,12 @@ export const useDevices = () => {
         activateDevice: activateDeviceMutation.mutate,
         activateDeviceAsync: activateDeviceMutation.mutateAsync,
         isActivating: activateDeviceMutation.isPending,
+        updateDevice: updateDeviceMutation.mutate,
+        updateDeviceAsync: updateDeviceMutation.mutateAsync,
+        isUpdating: updateDeviceMutation.isPending,
+        deleteDevice: deleteDeviceMutation.mutate,
+        deleteDeviceAsync: deleteDeviceMutation.mutateAsync,
+        isDeleting: deleteDeviceMutation.isPending,
     }
 }
 
