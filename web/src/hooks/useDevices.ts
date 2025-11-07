@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { devicesApi, type CreateDeviceRequest } from '../api/devices'
+import { devicesApi } from '../api/devices'
+import { AxiosError } from 'axios'
 
 export const useDevices = () => {
     const queryClient = useQueryClient()
@@ -12,36 +13,48 @@ export const useDevices = () => {
 
     const createDeviceMutation = useMutation({
         mutationFn: (name: string) => devicesApi.createDevice(name),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['devices'] })
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['devices'] })
+        },
+        onError: (error: AxiosError) => {
+            console.error('Create device error:', error.response?.data)
         },
     })
 
     const activateDeviceMutation = useMutation({
         mutationFn: (deviceId: string) => devicesApi.activateDevice(deviceId),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['devices'] })
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['devices'] })
+        },
+        onError: (error: AxiosError) => {
+            console.error('Activate device error:', error.response?.data)
         },
     })
 
     const updateDeviceMutation = useMutation({
         mutationFn: ({ deviceId, name }: { deviceId: string; name: string }) =>
             devicesApi.updateDevice(deviceId, name),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['devices'] })
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['devices'] })
+        },
+        onError: (error: AxiosError) => {
+            console.error('Update device error:', error.response?.data)
         },
     })
 
     const deleteDeviceMutation = useMutation({
         mutationFn: (deviceId: string) => devicesApi.deleteDevice(deviceId),
-        onSuccess: (_, deviceId) => {
-            queryClient.invalidateQueries({ queryKey: ['devices'] })
-            queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'usage'] })
+        onSuccess: async (_, deviceId) => {
+            await queryClient.invalidateQueries({ queryKey: ['devices'] })
+            await queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'usage'] })
+        },
+        onError: (error: AxiosError) => {
+            console.error('Delete device error:', error.response?.data)
         },
     })
 
     return {
-        devices: data?.devices || [],
+        devices: data?.devices ?? [],
         isLoading,
         error,
         createDevice: createDeviceMutation.mutate,
@@ -59,7 +72,7 @@ export const useDevices = () => {
     }
 }
 
-export const useDeviceUsage = (deviceId: string, limit: number = 100) => {
+export const useDeviceUsage = (deviceId: string, limit = 100) => {
     const { data, isLoading, error } = useQuery({
         queryKey: ['devices', deviceId, 'usage', limit],
         queryFn: () => devicesApi.getDeviceUsage(deviceId, limit),
@@ -67,7 +80,7 @@ export const useDeviceUsage = (deviceId: string, limit: number = 100) => {
     })
 
     return {
-        reports: data?.reports || [],
+        reports: data?.reports ?? [],
         isLoading,
         error,
     }

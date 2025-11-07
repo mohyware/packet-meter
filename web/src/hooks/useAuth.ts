@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { authApi } from '../api/auth'
+import type { AxiosError } from 'axios';
 
 export const useAuth = () => {
     const queryClient = useQueryClient()
@@ -21,13 +22,12 @@ export const useAuth = () => {
     // Login with Google mutation
     const loginMutation = useMutation({
         mutationFn: authApi.loginWithGoogle,
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['auth'] })
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['auth'] })
             navigate('/dashboard')
         },
-        onError: (error: any) => {
-            console.error('Login error:', error)
-            // The error will be available in the mutation state
+        onError: (error: AxiosError) => {
+            console.error('Login error:', error.response?.data)
         },
     })
 

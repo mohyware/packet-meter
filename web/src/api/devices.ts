@@ -29,7 +29,7 @@ export interface DeviceUsageReport {
     totalRxMB: string
     totalTxMB: string
     createdAt: string
-    interfaces: Array<{
+    interfaces: {
         id: string
         deviceId: string
         reportId: string
@@ -38,7 +38,7 @@ export interface DeviceUsageReport {
         totalTx: string
         totalRxMB: string
         totalTxMB: string
-    }>
+    }[]
 }
 
 export interface DevicesResponse {
@@ -78,7 +78,7 @@ export const devicesApi = {
      */
     getDeviceUsage: async (
         deviceId: string,
-        limit: number = 100
+        limit = 100
     ): Promise<DeviceUsageResponse> => {
         const { data } = await apiClient.get<DeviceUsageResponse>(
             `/api/v1/devices/${deviceId}/usage`,

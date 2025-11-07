@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { AxiosError } from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
@@ -13,7 +14,7 @@ export const apiClient = axios.create({
 // Response interceptor to handle errors
 apiClient.interceptors.response.use(
     (response) => response,
-    (error) => {
+    (error: AxiosError) => {
         if (error.response?.status === 401) {
             // Only redirect if not on landing page
             if (window.location.pathname !== '/') {
