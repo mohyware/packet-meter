@@ -1,29 +1,33 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { loginAsync, isAuthenticated, user, logout } = useAuth();
+  const location = useLocation();
+  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/devices');
 
   if (isAuthenticated) {
     return (
       <header className="sticky top-0 bg-white border-b border-gray-200 shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex justify-between items-center">
           <Link
-            to="/dashboard"
+            to="/"
             className="text-2xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
           >
             PacketPilot
           </Link>
           <nav className="flex items-center gap-6">
-            <Link
-              to="/dashboard"
-              className="text-[0.9375rem] font-medium text-gray-600 hover:text-blue-600 transition-colors"
-            >
-              Dashboard
-            </Link>
+            {!isDashboardRoute && (
+              <Link
+                to="/dashboard"
+                className="px-4 py-2 rounded-full bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors shadow"
+              >
+                Continue to Dashboard
+              </Link>
+            )}
             {/* User Info Tab */}
             <div className="relative">
               <button

@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDevices } from '../hooks/useDevices';
+import { useAllDevicesUsage } from '../hooks/useAllDevicesUsage';
 import { useNavigate } from 'react-router-dom';
+import StatsSection from '../components/StatsSection';
 
 export default function DashboardPage() {
   const {
@@ -29,8 +31,10 @@ export default function DashboardPage() {
   const [editingDeviceId, setEditingDeviceId] = useState<string | null>(null);
   const [editingDeviceName, setEditingDeviceName] = useState('');
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'name' | 'usage' | 'status'>('usage');
   const previousDevicesRef = useRef<typeof devices>([]);
   const navigate = useNavigate();
+  const { stats: usageStats } = useAllDevicesUsage();
 
   // Detect when devices change from pending to pendingApproval
   useEffect(() => {
@@ -108,6 +112,42 @@ export default function DashboardPage() {
     setEditingDeviceName(currentName);
   };
 
+  const formatMB = (mb: number) => {
+    if (mb >= 1024) {
+      return `${(mb / 1024).toFixed(2)} GB`;
+    }
+    return `${mb.toFixed(2)} MB`;
+  };
+
+  // Sort devices based on selected sort option
+  const sortedDevices = useMemo(() => {
+    const devicesCopy = [...devices];
+
+    if (sortBy === 'usage') {
+      // Sort by usage (if available) or by name
+      return devicesCopy.sort((a, b) => {
+        const aUsage = usageStats?.devicesSortedByUsage.find(
+          (d) => d.deviceId === a.id
+        )?.totalUsageMB ?? 0;
+        const bUsage = usageStats?.devicesSortedByUsage.find(
+          (d) => d.deviceId === b.id
+        )?.totalUsageMB ?? 0;
+        return bUsage - aUsage;
+      });
+    } else if (sortBy === 'name') {
+      return devicesCopy.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === 'status') {
+      const statusOrder = { active: 0, pendingApproval: 1, pending: 2 };
+      return devicesCopy.sort((a, b) => {
+        const aOrder = statusOrder[a.status] ?? 3;
+        const bOrder = statusOrder[b.status] ?? 3;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return a.name.localeCompare(b.name);
+      });
+    }
+    return devicesCopy;
+  }, [devices, sortBy, usageStats]);
+
   if (isLoading) {
     return (
       <div className="text-center py-12 text-gray-600">
@@ -163,14 +203,31 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-8">
+      {/* Stats Section */}
+      <StatsSection />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-3xl font-semibold text-gray-800">Your Devices</h2>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          {showCreateForm ? 'Cancel' : '+ Add Device'}
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 font-medium">Sort by:</label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'name' | 'usage' | 'status')}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="usage">Usage</option>
+              <option value="name">Name</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            {showCreateForm ? 'Cancel' : '+ Add Device'}
+          </button>
+        </div>
       </div>
 
       {showCreateForm && (
@@ -203,176 +260,201 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {devices.map((device) => (
-            <div
-              key={device.id}
-              className="bg-white rounded-lg p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
-            >
-              <div className="flex justify-between items-start mb-4">
-                <div
-                  className="flex-1 cursor-pointer"
-                  onClick={() => navigate(`/devices/${device.id}`)}
-                >
-                  {editingDeviceId === device.id ? (
-                    <form onSubmit={handleEditDevice} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={editingDeviceName}
-                        onChange={(e) => setEditingDeviceName(e.target.value)}
-                        className="flex-1 px-3 py-1 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600"
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
+          {sortedDevices.map((device) => {
+            const deviceUsage = usageStats?.devicesSortedByUsage.find(
+              (d) => d.deviceId === device.id
+            );
+            return (
+              <div
+                key={device.id}
+                className="bg-white rounded-lg p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5"
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div
+                    className="flex-1 cursor-pointer"
+                    onClick={() => navigate(`/devices/${device.id}`)}
+                  >
+                    {editingDeviceId === device.id ? (
+                      <form onSubmit={handleEditDevice} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editingDeviceName}
+                          onChange={(e) => setEditingDeviceName(e.target.value)}
+                          className="flex-1 px-3 py-1 border border-gray-300 rounded text-base focus:outline-none focus:border-blue-600"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              setEditingDeviceId(null);
+                              setEditingDeviceName('');
+                            }
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={isUpdating || !editingDeviceName.trim()}
+                          className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-60"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingDeviceId(null);
                             setEditingDeviceName('');
-                          }
-                        }}
-                      />
-                      <button
-                        type="submit"
-                        disabled={isUpdating || !editingDeviceName.trim()}
-                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 disabled:opacity-60"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        className="px-3 py-1 bg-gray-300 text-gray-700 text-xs rounded hover:bg-gray-400"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingDeviceId(null);
-                          setEditingDeviceName('');
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </form>
-                  ) : (
-                    <h3 className="text-xl font-semibold text-gray-800 m-0">
-                      {device.name}
-                    </h3>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
-                      device.status === 'active'
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </form>
+                    ) : (
+                      <h3 className="text-xl font-semibold text-gray-800 m-0">
+                        {device.name}
+                      </h3>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
                         ? 'bg-green-100 text-green-800'
                         : device.status === 'pendingApproval'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {device.status === 'active'
-                      ? 'Active'
-                      : device.status === 'pendingApproval'
-                        ? 'Pending Approval'
-                        : 'Pending'}
-                  </span>
-                  {editingDeviceId !== device.id && (
-                    <div className="flex gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEdit(device.id, device.name);
-                        }}
-                        className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Edit device name"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                        }`}
+                    >
+                      {device.status === 'active'
+                        ? 'Active'
+                        : device.status === 'pendingApproval'
+                          ? 'Pending Approval'
+                          : 'Pending'}
+                    </span>
+                    {editingDeviceId !== device.id && (
+                      <div className="flex gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startEdit(device.id, device.name);
+                          }}
+                          className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          title="Edit device name"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeletingDeviceId(device.id);
-                        }}
-                        className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete device"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingDeviceId(device.id);
+                          }}
+                          className="p-1.5 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                          title="Delete device"
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div
+                  className="flex flex-col gap-2"
+                  onClick={() => navigate(`/devices/${device.id}`)}
+                >
+                  {deviceUsage && deviceUsage.totalUsageMB > 0 && (
+                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs text-gray-600 uppercase tracking-wide">
+                          Total Usage
+                        </span>
+                        <span className="text-lg font-bold text-blue-600">
+                          {formatMB(deviceUsage.totalUsageMB)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-gray-600">
+                        <span>RX: {formatMB(deviceUsage.totalRxMB)}</span>
+                        <span>TX: {formatMB(deviceUsage.totalTxMB)}</span>
+                      </div>
+                      {deviceUsage.reportCount > 0 && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          {deviceUsage.reportCount} report{deviceUsage.reportCount !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Created:</span>
+                    <span className="text-gray-800 font-medium">
+                      {new Date(device.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {device.lastHealthCheck && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Last seen:</span>
+                      <span className="text-gray-800 font-medium">
+                        {new Date(device.lastHealthCheck).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  {device.status === 'pending' && (
+                    <div className="pt-3">
+                      <p className="text-sm text-gray-600 italic">
+                        Waiting for device to enter token...
+                      </p>
+                    </div>
+                  )}
+                  {device.status === 'pendingApproval' && (
+                    <div className="pt-3">
+                      <button
+                        className="px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                        disabled={isActivating}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            await activateDeviceAsync(device.id);
+                            // Remove from pending approval notifications after successful activation
+                            setPendingApprovalDevices((prev) => {
+                              const newSet = new Set(prev);
+                              newSet.delete(device.id);
+                              return newSet;
+                            });
+                          } catch (err) {
+                            console.error('Activate failed', err);
+                          }
+                        }}
+                      >
+                        {isActivating ? 'Activating...' : 'Approve'}
                       </button>
                     </div>
                   )}
                 </div>
               </div>
-              <div
-                className="flex flex-col gap-2"
-                onClick={() => navigate(`/devices/${device.id}`)}
-              >
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Created:</span>
-                  <span className="text-gray-800 font-medium">
-                    {new Date(device.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {device.lastHealthCheck && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Last seen:</span>
-                    <span className="text-gray-800 font-medium">
-                      {new Date(device.lastHealthCheck).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {device.status === 'pending' && (
-                  <div className="pt-3">
-                    <p className="text-sm text-gray-600 italic">
-                      Waiting for device to enter token...
-                    </p>
-                  </div>
-                )}
-                {device.status === 'pendingApproval' && (
-                  <div className="pt-3">
-                    <button
-                      className="px-4 py-2 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={isActivating}
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        try {
-                          await activateDeviceAsync(device.id);
-                          // Remove from pending approval notifications after successful activation
-                          setPendingApprovalDevices((prev) => {
-                            const newSet = new Set(prev);
-                            newSet.delete(device.id);
-                            return newSet;
-                          });
-                        } catch (err) {
-                          console.error('Activate failed', err);
-                        }
-                      }}
-                    >
-                      {isActivating ? 'Activating...' : 'Approve'}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
       <TokenModal

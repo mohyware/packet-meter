@@ -1,22 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/auth'
 import type { AxiosError } from 'axios';
 
 export const useAuth = () => {
     const queryClient = useQueryClient()
     const navigate = useNavigate()
-    const location = useLocation()
 
     // Check if user is authenticated
-    // Only run this query on protected routes (not on landing page)
-    const isPublicPage = location.pathname === '/'
     const { data: userInfo, isLoading } = useQuery({
         queryKey: ['auth', 'me'],
         queryFn: authApi.getCurrentUser,
         retry: false,
-        enabled: !isPublicPage, // Don't check auth on landing page
         staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+        // Don't throw errors for 401 (unauthorized) - that's expected when not logged in
+        throwOnError: (error: AxiosError) => {
+            const status = error.response?.status;
+            // Only throw non-401 errors
+            return status !== 401 && status !== 403;
+        },
     })
 
     // Login with Google mutation
