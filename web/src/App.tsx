@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import DeviceDetailPage from './pages/DeviceDetailPage';
 import Layout from './components/Layout';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -33,7 +34,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <Header />
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -58,7 +59,7 @@ function App() {
           }
         />
       </Routes>
-    </>
+    </ErrorBoundary>
   );
 }
 

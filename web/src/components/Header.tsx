@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
+import toast from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 
 export default function Header() {
@@ -105,13 +106,13 @@ export default function Header() {
           <GoogleLogin
             onSuccess={(credentialResponse) => {
               if (credentialResponse.credential) {
-                loginAsync(credentialResponse.credential).catch((err) => {
-                  console.error('Login error:', err);
+                loginAsync(credentialResponse.credential).catch(() => {
+                  // Error is already handled in the mutation's onError
                 });
               }
             }}
             onError={() => {
-              console.error('Google login failed');
+              toast.error('Google login failed. Please try again.');
             }}
             useOneTap
             theme="outline"
