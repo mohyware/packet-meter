@@ -8,7 +8,9 @@ export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const { loginAsync, isAuthenticated, user, logout } = useAuth();
   const location = useLocation();
-  const isDashboardRoute = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/devices');
+  const isDashboardRoute =
+    location.pathname.startsWith('/dashboard') ||
+    location.pathname.startsWith('/devices');
 
   if (isAuthenticated) {
     return (

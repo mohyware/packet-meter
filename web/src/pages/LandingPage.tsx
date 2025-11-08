@@ -15,7 +15,7 @@ import {
   Smartphone,
   Terminal,
   Zap,
-} from "lucide-react";
+} from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -67,10 +67,12 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mt-12">
             <div className="bg-white/10 backdrop-blur-lg p-8 rounded-xl border border-white/20 text-center flex flex-col items-center">
               <GitFork className="h-12 w-12 mb-4" />
-              <h3 className="text-2xl font-semibold mb-3">Open Source & Self-Hosted</h3>
+              <h3 className="text-2xl font-semibold mb-3">
+                Open Source & Self-Hosted
+              </h3>
               <p className="text-base opacity-90 leading-relaxed">
-                Cross-platform, open source, and easy to self-host for full control
-                over your data
+                Cross-platform, open source, and easy to self-host for full
+                control over your data
               </p>
             </div>
 
@@ -106,8 +108,8 @@ export default function LandingPage() {
                 Email Reports
               </h3>
               <p className="text-gray-600 leading-relaxed text-base">
-                Traffic usage reports delivered to your inbox daily, weekly,
-                or on a custom schedule you control.
+                Traffic usage reports delivered to your inbox daily, weekly, or
+                on a custom schedule you control.
               </p>
             </div>
             <div className="bg-white p-10 rounded-xl shadow-md hover:-translate-y-1 hover:shadow-lg transition-all">
@@ -148,7 +150,9 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-6 text-indigo-600">
             <Hourglass className="h-6 w-6" />
-            <span className="uppercase tracking-wide font-semibold">Coming Soon</span>
+            <span className="uppercase tracking-wide font-semibold">
+              Coming Soon
+            </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-8">
             Advanced Controls for Your Entire Network
@@ -157,27 +161,36 @@ export default function LandingPage() {
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-8 text-left flex flex-col gap-4">
               <ShieldBan className="h-10 w-10 text-indigo-600" />
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Firewall Policies</h3>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Firewall Policies
+                </h3>
                 <p className="text-gray-600 text-base">
-                  Admins will be able to block specific apps or websites per device using fine-grained firewall rules.
+                  Admins will be able to block specific apps or websites per
+                  device using fine-grained firewall rules.
                 </p>
               </div>
             </div>
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-8 text-left flex flex-col gap-4">
               <ServerCog className="h-10 w-10 text-indigo-600" />
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">DNS Control</h3>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  DNS Control
+                </h3>
                 <p className="text-gray-600 text-base">
-                  Adjust DNS profiles for each device to enforce safe browsing or custom routing per team or household.
+                  Adjust DNS profiles for each device to enforce safe browsing
+                  or custom routing per team or household.
                 </p>
               </div>
             </div>
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-8 text-left flex flex-col gap-4">
               <Gauge className="h-10 w-10 text-indigo-600" />
               <div>
-                <h3 className="text-xl font-semibold text-gray-900">Quota Limits</h3>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Quota Limits
+                </h3>
                 <p className="text-gray-600 text-base">
-                  Set per-device or per-app data limits to control usage and prevent unexpected overages.
+                  Set per-device or per-app data limits to control usage and
+                  prevent unexpected overages.
                 </p>
               </div>
             </div>

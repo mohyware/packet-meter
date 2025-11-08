@@ -126,12 +126,12 @@ export default function DashboardPage() {
     if (sortBy === 'usage') {
       // Sort by usage (if available) or by name
       return devicesCopy.sort((a, b) => {
-        const aUsage = usageStats?.devicesSortedByUsage.find(
-          (d) => d.deviceId === a.id
-        )?.totalUsageMB ?? 0;
-        const bUsage = usageStats?.devicesSortedByUsage.find(
-          (d) => d.deviceId === b.id
-        )?.totalUsageMB ?? 0;
+        const aUsage =
+          usageStats?.devicesSortedByUsage.find((d) => d.deviceId === a.id)
+            ?.totalUsageMB ?? 0;
+        const bUsage =
+          usageStats?.devicesSortedByUsage.find((d) => d.deviceId === b.id)
+            ?.totalUsageMB ?? 0;
         return bUsage - aUsage;
       });
     } else if (sortBy === 'name') {
@@ -210,10 +210,14 @@ export default function DashboardPage() {
         <h2 className="text-3xl font-semibold text-gray-800">Your Devices</h2>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-600 font-medium">Sort by:</label>
+            <label className="text-sm text-gray-600 font-medium">
+              Sort by:
+            </label>
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'usage' | 'status')}
+              onChange={(e) =>
+                setSortBy(e.target.value as 'name' | 'usage' | 'status')
+              }
               className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
             >
               <option value="usage">Usage</option>
@@ -318,12 +322,13 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : device.status === 'pendingApproval'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                        }`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
+                        device.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : device.status === 'pendingApproval'
+                            ? 'bg-yellow-100 text-yellow-800'
+                            : 'bg-gray-100 text-gray-800'
+                      }`}
                     >
                       {device.status === 'active'
                         ? 'Active'
@@ -401,7 +406,8 @@ export default function DashboardPage() {
                       </div>
                       {deviceUsage.reportCount > 0 && (
                         <div className="text-xs text-gray-500 mt-1">
-                          {deviceUsage.reportCount} report{deviceUsage.reportCount !== 1 ? 's' : ''}
+                          {deviceUsage.reportCount} report
+                          {deviceUsage.reportCount !== 1 ? 's' : ''}
                         </div>
                       )}
                     </div>
