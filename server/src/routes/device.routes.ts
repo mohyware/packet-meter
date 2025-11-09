@@ -4,11 +4,13 @@ import * as deviceService from '../services/device.service';
 import { requireAuth } from '../middleware/auth';
 import { createDeviceSchema, updateDeviceSchema } from './validation';
 import logger from '../utils/logger';
+// import { eq } from 'drizzle-orm';
+// import { db, users } from '../db';
 
 const router = Router();
 
 /**
- * POST /api/v1/devices
+ * POST /api/v1/devicesp
  * Create a new device
  */
 router.post('/', requireAuth, async (req: Request, res: Response) => {
@@ -139,6 +141,7 @@ router.post(
 /**
  * GET /api/v1/devices/:deviceId/usage
  * Get usage reports for a device
+ * Results are aggregated by UTC hour and can be filtered by user's timezone
  */
 router.get(
   '/:deviceId/usage',
@@ -146,11 +149,30 @@ router.get(
   async (req: Request, res: Response) => {
     try {
       const deviceId = req.params.deviceId;
+      const device = await deviceService.getDeviceById(deviceId);
+
+      if (!device || device.userId !== req.userId) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'device not found' });
+      }
+
       const limit = req.query.limit
         ? parseInt(req.query.limit as string, 10)
         : 100;
 
-      const reports = await deviceService.getDeviceReports(deviceId, limit);
+      // Get user's timezone for filtering
+      // const user = await db.query.users.findFirst({
+      //   where: eq(users.id, req.userId),
+      // });
+
+      // const timezone = user?.timezone ?? 'UTC';
+
+      const reports = await deviceService.getDeviceReports(
+        deviceId,
+        limit,
+        // timezone
+      );
 
       return res.json({
         success: true,
@@ -158,6 +180,48 @@ router.get(
       });
     } catch (error: unknown) {
       logger.error('Get device usage error:', error);
+      return res
+        .status(500)
+        .json({ success: false, message: 'internal server error' });
+    }
+  }
+);
+
+/**
+ * GET /api/v1/devices/:deviceId/interfaces/:interfaceName/usage
+ * Get usage reports for a specific interface on a device
+ */
+router.get(
+  '/:deviceId/interfaces/:interfaceName/usage',
+  requireAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const deviceId = req.params.deviceId;
+      const interfaceName = req.params.interfaceName;
+      const device = await deviceService.getDeviceById(deviceId);
+
+      if (!device || device.userId !== req.userId) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'device not found' });
+      }
+
+      const limit = req.query.limit
+        ? parseInt(req.query.limit as string, 10)
+        : 100;
+
+      const reports = await deviceService.getInterfaceUsage(
+        deviceId,
+        interfaceName,
+        limit
+      );
+
+      return res.json({
+        success: true,
+        reports,
+      });
+    } catch (error: unknown) {
+      logger.error('Get interface usage error:', error);
       return res
         .status(500)
         .json({ success: false, message: 'internal server error' });

@@ -1,10 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { eq } from 'drizzle-orm';
 import * as deviceService from '../services/device.service';
 import { requireDeviceAuth } from '../middleware/auth';
 import { dailyUsageReportSchema } from './validation';
-import { getDateInTimezone } from '../utils/timezone';
-import { db, users } from '../db';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -57,35 +54,29 @@ router.post(
 
       const report = parse.data;
 
-      // Get user timezone from device
-      const user = await db.query.users.findFirst({
-        where: eq(users.id, device.userId),
-      });
-
-      const userTimezone = user?.timezone ?? 'UTC';
-
-      // Convert the timestamp to user's timezone and get the date
+      // Parse timestamp from report (device should send UTC timestamp)
       const timestampDate = new Date(report.Timestamp);
-      const dateInUserTimezone = getDateInTimezone(timestampDate, userTimezone);
 
-      // Create report in database with date in user's timezone
+      // Create reports in database (one per interface, grouped by UTC hour)
+      // The timestamp will be rounded to UTC hour for storage
       await deviceService.createUsageReport({
         deviceId: device.id,
         timestamp: timestampDate,
-        date: dateInUserTimezone, // Use date in user's timezone instead of device's date
         interfaces: report.Interfaces.map((iface) => ({
           name: iface.Interface,
           totalRx: iface.TotalRx,
           totalTx: iface.TotalTx,
-          totalRxMB: iface.TotalRxMB,
-          totalTxMB: iface.TotalTxMB,
         })),
-        totalRxMB: report.TotalRxMB,
-        totalTxMB: report.TotalTxMB,
       });
 
+      // Calculate total for logging (convert bytes to MB)
+      const totalRxBytes = report.Interfaces.reduce((sum, iface) => sum + iface.TotalRx, 0);
+      const totalTxBytes = report.Interfaces.reduce((sum, iface) => sum + iface.TotalTx, 0);
+      const totalRxMB = totalRxBytes / (1024 * 1024);
+      const totalTxMB = totalTxBytes / (1024 * 1024);
+
       logger.debug(
-        `Device: ${device.id}, Date: ${report.Date}, Total Combined: ${(report.TotalRxMB + report.TotalTxMB).toFixed(2)}`
+        `Device: ${device.id}, Timestamp: ${timestampDate.toISOString()}, Total Combined: ${(totalRxMB + totalTxMB).toFixed(2)} MB`
       );
 
       return res.json({ success: true, message: 'received', commands: [] });

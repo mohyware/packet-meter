@@ -25,19 +25,12 @@ export interface DeviceUsageReport {
     id: string
     deviceId: string
     timestamp: string
-    date: string
-    totalRxMB: string
-    totalTxMB: string
-    createdAt: string
+    totalRx: string
+    totalTx: string
     interfaces: {
-        id: string
-        deviceId: string
-        reportId: string
         name: string
         totalRx: string
         totalTx: string
-        totalRxMB: string
-        totalTxMB: string
     }[]
 }
 

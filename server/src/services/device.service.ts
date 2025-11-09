@@ -1,10 +1,11 @@
 import { eq, desc, and, InferSelectModel } from 'drizzle-orm';
-import { db, devices, reports, interfaces } from '../db';
+import { db, devices, reports } from '../db';
 import {
   generateDeviceToken,
   hashDeviceToken,
   verifyDeviceToken,
 } from '../utils/auth';
+import { roundToUTCHour } from '../utils/timezone';
 
 export interface CreateDeviceInput {
   userId: string;
@@ -112,43 +113,133 @@ export async function updateDeviceHealthCheck(deviceId: string) {
 export async function getDeviceWithUsage(deviceId: string) {
   const device = await db.query.devices.findFirst({
     where: eq(devices.id, deviceId),
-    with: {
-      reports: {
-        orderBy: desc(reports.timestamp),
-        limit: 1,
-      },
-    },
   });
 
   if (!device) {
     return null;
   }
 
-  // Get total report count
-  const reportsList = await db.query.reports.findMany({
+  // Get the most recent report timestamp
+  const latestReport = await db.query.reports.findFirst({
     where: eq(reports.deviceId, deviceId),
+    orderBy: desc(reports.timestamp),
   });
+
+  // Get total report count (unique hours) - get all reports and count unique timestamps
+  const allReports = await db.query.reports.findMany({
+    where: eq(reports.deviceId, deviceId),
+    columns: {
+      timestamp: true,
+    },
+  });
+
+  // Count unique timestamps
+  const uniqueHours = new Set(allReports.map((r) => r.timestamp.toISOString()));
 
   return {
     ...device,
-    totalReports: reportsList.length,
-    lastReportDate: device.reports[0]?.timestamp || null,
+    totalReports: uniqueHours.size,
+    lastReportDate: latestReport?.timestamp ?? null,
     activatedAt: device.isActivated ? device.createdAt : null,
   };
 }
 
 /**
  * Get device usage reports
+ * Aggregates interface-level reports by UTC hour and returns device-level totals
+ * Results are grouped by UTC hour and can be filtered by local timezone
  */
-export async function getDeviceReports(deviceId: string, limit = 100) {
-  return db.query.reports.findMany({
+export async function getDeviceReports(
+  deviceId: string,
+  limit = 100,
+) {
+  // Get all reports for this device, ordered by timestamp
+  const allReports = await db.query.reports.findMany({
     where: eq(reports.deviceId, deviceId),
     orderBy: desc(reports.timestamp),
-    limit,
-    with: {
-      interfaces: true,
-    },
+    limit: limit * 10, // Get more to account for multiple interfaces per hour
   });
+
+  // Group by UTC hour and aggregate
+  const reportsByHour = new Map<string, {
+    timestamp: Date;
+    interfaces: {
+      name: string;
+      totalRx: string;
+      totalTx: string;
+    }[];
+    totalRxBytes: bigint;
+    totalTxBytes: bigint;
+  }>();
+
+  for (const report of allReports) {
+    const hourKey = report.timestamp.toISOString();
+    if (!reportsByHour.has(hourKey)) {
+      reportsByHour.set(hourKey, {
+        timestamp: report.timestamp,
+        interfaces: [],
+        totalRxBytes: BigInt(0),
+        totalTxBytes: BigInt(0),
+      });
+    }
+
+    const hourReport = reportsByHour.get(hourKey)!;
+    const rxBytes = BigInt(report.totalRx);
+    const txBytes = BigInt(report.totalTx);
+
+    hourReport.interfaces.push({
+      name: report.interfaceName,
+      totalRx: report.totalRx,
+      totalTx: report.totalTx,
+    });
+    hourReport.totalRxBytes += rxBytes;
+    hourReport.totalTxBytes += txBytes;
+  }
+
+  // Convert to array and sort by timestamp (descending)
+  const result = Array.from(reportsByHour.values())
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+    .slice(0, limit)
+    .map((report) => ({
+      id: report.timestamp.toISOString(), // Use timestamp as ID for now
+      deviceId,
+      timestamp: report.timestamp,
+      totalRx: report.totalRxBytes.toString(),
+      totalTx: report.totalTxBytes.toString(),
+      interfaces: report.interfaces,
+    }));
+
+  return result;
+}
+
+/**
+ * Get interface usage reports
+ * Returns usage for a specific interface, grouped by UTC hour
+ */
+export async function getInterfaceUsage(
+  deviceId: string,
+  interfaceName: string,
+  limit = 100
+) {
+  const interfaceReports = await db.query.reports.findMany({
+    where: and(
+      eq(reports.deviceId, deviceId),
+      eq(reports.interfaceName, interfaceName)
+    ),
+    orderBy: desc(reports.timestamp),
+    limit,
+  });
+
+  return interfaceReports.map((report) => ({
+    id: report.id,
+    deviceId: report.deviceId,
+    interfaceName: report.interfaceName,
+    timestamp: report.timestamp,
+    totalRx: report.totalRx,
+    totalTx: report.totalTx,
+    createdAt: report.createdAt,
+    updatedAt: report.updatedAt,
+  }));
 }
 
 /**
@@ -175,91 +266,63 @@ export async function deleteDevice(deviceId: string) {
 }
 
 /**
- * Create or update a usage report (one per device per day)
+ * Create or update usage reports (one per interface per UTC hour)
+ * Stores reports grouped by UTC hour, with one record per interface per hour
  */
 export async function createUsageReport(data: {
   deviceId: string;
   timestamp: Date;
-  date: string;
   interfaces: {
     name: string;
     totalRx: number;
     totalTx: number;
-    totalRxMB: number;
-    totalTxMB: number;
   }[];
-  totalRxMB: number;
-  totalTxMB: number;
 }) {
-  // Check if report exists for this device and date
-  const existingReport = await db.query.reports.findFirst({
-    where: and(
-      eq(reports.deviceId, data.deviceId),
-      eq(reports.date, data.date)
-    ),
-  });
+  // Round timestamp to UTC hour for storage
+  const utcHour = roundToUTCHour(data.timestamp);
 
-  let report;
+  // Create or update report for each interface
+  const createdReports = [];
 
-  if (existingReport) {
-    const [updatedReport] = await db
-      .update(reports)
-      .set({
-        timestamp: data.timestamp,
-        totalRxMB: data.totalRxMB.toString(),
-        totalTxMB: data.totalTxMB.toString(),
-        updatedAt: new Date(),
-      })
-      .where(eq(reports.id, existingReport.id))
-      .returning();
-
-    report = updatedReport;
-  } else {
-    const [newReport] = await db
-      .insert(reports)
-      .values({
-        deviceId: data.deviceId,
-        timestamp: data.timestamp,
-        date: data.date,
-        totalRxMB: data.totalRxMB.toString(),
-        totalTxMB: data.totalTxMB.toString(),
-      })
-      .returning();
-
-    report = newReport;
-  }
-
-  // Create/update interfaces (one per report per name)
   for (const iface of data.interfaces) {
-    const existingInterface = await db.query.interfaces.findFirst({
+    // Check if report exists for this device, interface, and UTC hour
+    const existingReport = await db.query.reports.findFirst({
       where: and(
-        eq(interfaces.reportId, report.id),
-        eq(interfaces.name, iface.name)
+        eq(reports.deviceId, data.deviceId),
+        eq(reports.interfaceName, iface.name),
+        eq(reports.timestamp, utcHour)
       ),
     });
 
-    if (existingInterface) {
-      await db
-        .update(interfaces)
+    if (existingReport) {
+      // Update existing report
+      const [updatedReport] = await db
+        .update(reports)
         .set({
           totalRx: iface.totalRx.toString(),
           totalTx: iface.totalTx.toString(),
-          totalRxMB: iface.totalRxMB.toString(),
-          totalTxMB: iface.totalTxMB.toString(),
+          updatedAt: new Date(),
         })
-        .where(eq(interfaces.id, existingInterface.id));
+        .where(eq(reports.id, existingReport.id))
+        .returning();
+
+      createdReports.push(updatedReport);
     } else {
-      await db.insert(interfaces).values({
-        deviceId: data.deviceId,
-        reportId: report.id,
-        name: iface.name,
-        totalRx: iface.totalRx.toString(),
-        totalTx: iface.totalTx.toString(),
-        totalRxMB: iface.totalRxMB.toString(),
-        totalTxMB: iface.totalTxMB.toString(),
-      });
+      // Create new report
+      const [newReport] = await db
+        .insert(reports)
+        .values({
+          deviceId: data.deviceId,
+          interfaceName: iface.name,
+          timestamp: utcHour,
+          totalRx: iface.totalRx.toString(),
+          totalTx: iface.totalTx.toString(),
+        })
+        .returning();
+
+      createdReports.push(newReport);
     }
   }
 
-  return report;
+  return createdReports;
 }

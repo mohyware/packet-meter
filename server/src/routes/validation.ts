@@ -36,14 +36,10 @@ const interfaceUsageSchema = z.object({
   Interface: z.string(),
   TotalRx: z.number().nonnegative(),
   TotalTx: z.number().nonnegative(),
-  TotalRxMB: z.number().nonnegative(),
-  TotalTxMB: z.number().nonnegative(),
 });
 
 export const dailyUsageReportSchema = z.object({
   Timestamp: z.string(),
   Date: z.string(), // YYYY-MM-DD
   Interfaces: z.array(interfaceUsageSchema),
-  TotalRxMB: z.number().nonnegative(),
-  TotalTxMB: z.number().nonnegative(),
 });

@@ -50,20 +50,31 @@ export const useAllDevicesUsage = () => {
 
             const results = await Promise.all(usagePromises);
 
+            // Helper function to convert bytes to MB
+            const bytesToMB = (bytes: string): number => {
+                return parseFloat(bytes) / (1024 * 1024);
+            };
+
             // Calculate stats
             const devicesWithUsage: DeviceWithUsage[] = results.map((result) => {
                 const totalRxMB = result.reports.reduce(
-                    (sum, report) => sum + parseFloat(report.totalRxMB),
+                    (sum, report) => {
+                        const rxBytes = typeof report.totalRx === 'string' ? report.totalRx : String(report.totalRx);
+                        return sum + bytesToMB(rxBytes);
+                    },
                     0
                 );
                 const totalTxMB = result.reports.reduce(
-                    (sum, report) => sum + parseFloat(report.totalTxMB),
+                    (sum, report) => {
+                        const txBytes = typeof report.totalTx === 'string' ? report.totalTx : String(report.totalTx);
+                        return sum + bytesToMB(txBytes);
+                    },
                     0
                 );
                 const totalUsageMB = totalRxMB + totalTxMB;
 
                 const lastReport = result.reports.length > 0
-                    ? result.reports[0].date
+                    ? new Date(result.reports[0].timestamp).toISOString().split('T')[0]
                     : null;
 
                 return {

@@ -29,6 +29,6 @@ export default tseslint.config(
         },
     },
     {
-        ignores: ['dist/', 'build/', 'node_modules/', '*.config.ts', 'eslint.config.mjs'],
+        ignores: ['dist/', 'build/', 'node_modules/', '*.config.ts', 'eslint.config.mjs', 'scripts/'],
     }
 );

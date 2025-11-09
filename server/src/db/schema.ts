@@ -9,25 +9,30 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Daily usage reports table
-// One report per device per day (unique constraint on deviceId + date)
-// TODO: Currently we group by local-day. In the future, we should switch to grouping by UTC hour
-// and calculate the user's local timezone on read, so users can change their timezone
-// and still see correct daily results.
+// Usage reports table - stores interface-level usage data grouped by UTC hour
+// One report per device per interface per UTC hour (unique constraint on deviceId + interfaceName + timestamp hour)
+// Timestamps are stored in UTC and rounded to the hour
+// Queries use user's local timezone to filter and aggregate data
 export const reports = pgTable(
   'reports',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    deviceId: uuid('device_id').notNull(),
-    timestamp: timestamp('timestamp').notNull(),
-    date: varchar('date', { length: 10 }).notNull(), // YYYY-MM-DD
-    totalRxMB: numeric('total_rx_mb', { precision: 15, scale: 2 }).notNull(),
-    totalTxMB: numeric('total_tx_mb', { precision: 15, scale: 2 }).notNull(),
+    deviceId: uuid('device_id')
+      .references(() => devices.id, { onDelete: 'cascade' })
+      .notNull(),
+    interfaceName: varchar('interface_name', { length: 100 }).notNull(),
+    timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
+    totalRx: numeric('total_rx', { precision: 20, scale: 0 }).notNull(),
+    totalTx: numeric('total_tx', { precision: 20, scale: 0 }).notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    uniqueDeviceDate: unique().on(table.deviceId, table.date),
+    uniqueDeviceInterfaceHour: unique().on(
+      table.deviceId,
+      table.interfaceName,
+      table.timestamp
+    ),
   })
 );
 
@@ -56,28 +61,6 @@ export const devices = pgTable('devices', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Interface usage table
-// One interface per report per name (unique constraint on reportId + name)
-export const interfaces = pgTable(
-  'interfaces',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    deviceId: uuid('device_id')
-      .references(() => devices.id, { onDelete: 'cascade' })
-      .notNull(),
-    reportId: uuid('report_id')
-      .references(() => reports.id, { onDelete: 'cascade' })
-      .notNull(),
-    name: varchar('name', { length: 100 }).notNull(),
-    totalRx: numeric('total_rx', { precision: 20, scale: 0 }).notNull(),
-    totalTx: numeric('total_tx', { precision: 20, scale: 0 }).notNull(),
-    totalRxMB: numeric('total_rx_mb', { precision: 15, scale: 2 }).notNull(),
-    totalTxMB: numeric('total_tx_mb', { precision: 15, scale: 2 }).notNull(),
-  },
-  (table) => ({
-    uniqueReportName: unique().on(table.reportId, table.name),
-  })
-);
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
@@ -90,25 +73,12 @@ export const devicesRelations = relations(devices, ({ one, many }) => ({
     references: [users.id],
   }),
   reports: many(reports),
-  interfaces: many(interfaces),
 }));
 
-export const reportsRelations = relations(reports, ({ one, many }) => ({
+export const reportsRelations = relations(reports, ({ one }) => ({
   device: one(devices, {
     fields: [reports.deviceId],
     references: [devices.id],
-  }),
-  interfaces: many(interfaces),
-}));
-
-export const interfacesRelations = relations(interfaces, ({ one }) => ({
-  device: one(devices, {
-    fields: [interfaces.deviceId],
-    references: [devices.id],
-  }),
-  report: one(reports, {
-    fields: [interfaces.reportId],
-    references: [reports.id],
   }),
 }));
 
@@ -119,5 +89,3 @@ export type Device = typeof devices.$inferSelect;
 export type NewDevice = typeof devices.$inferInsert;
 export type Report = typeof reports.$inferSelect;
 export type NewReport = typeof reports.$inferInsert;
-export type Interface = typeof interfaces.$inferSelect;
-export type NewInterface = typeof interfaces.$inferInsert;

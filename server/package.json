@@ -12,7 +12,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/insert-dummy-data.ts",
+    "db:clean": "tsx scripts/delete-dummy-data.ts"
   },
   "dependencies": {
     "@types/connect-pg-simple": "^7.0.3",

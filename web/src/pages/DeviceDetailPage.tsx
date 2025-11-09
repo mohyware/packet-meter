@@ -39,12 +39,16 @@ export default function DeviceDetailPage() {
     );
   }
 
-  const formatMB = (mb: string) => {
-    const num = parseFloat(mb);
-    if (num >= 1024) {
-      return `${(num / 1024).toFixed(2)} GB`;
+  // Helper function to convert bytes to MB
+  const bytesToMB = (bytes: string): number => {
+    return parseFloat(bytes) / (1024 * 1024);
+  };
+
+  const formatMB = (mb: number) => {
+    if (mb >= 1024) {
+      return `${(mb / 1024).toFixed(2)} GB`;
     }
-    return `${num.toFixed(2)} MB`;
+    return `${mb.toFixed(2)} MB`;
   };
 
   const handleEditName = async () => {
@@ -110,13 +114,12 @@ export default function DeviceDetailPage() {
           )}
           <div className="flex items-center gap-4 mt-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
-                device.status === 'active'
+              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
                   ? 'bg-green-100 text-green-800'
                   : device.status === 'pendingApproval'
                     ? 'bg-yellow-100 text-yellow-800'
                     : 'bg-gray-100 text-gray-800'
-              }`}
+                }`}
             >
               {device.status === 'active'
                 ? 'Active'
@@ -168,7 +171,7 @@ export default function DeviceDetailPage() {
             <div key={report.id} className="bg-white rounded-lg p-6 shadow-sm">
               <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
                 <h3 className="text-xl font-semibold text-gray-800 m-0">
-                  {report.date}
+                  {new Date(report.timestamp).toLocaleDateString()}
                 </h3>
                 <span className="text-sm text-gray-600">
                   {new Date(report.timestamp).toLocaleTimeString()}
@@ -180,7 +183,7 @@ export default function DeviceDetailPage() {
                     Total Received
                   </span>
                   <span className="text-2xl font-semibold text-gray-800">
-                    {formatMB(report.totalRxMB)}
+                    {formatMB(bytesToMB(report.totalRx))}
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -188,7 +191,7 @@ export default function DeviceDetailPage() {
                     Total Sent
                   </span>
                   <span className="text-2xl font-semibold text-gray-800">
-                    {formatMB(report.totalTxMB)}
+                    {formatMB(bytesToMB(report.totalTx))}
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
@@ -197,10 +200,7 @@ export default function DeviceDetailPage() {
                   </span>
                   <span className="text-2xl font-semibold text-blue-600">
                     {formatMB(
-                      (
-                        parseFloat(report.totalRxMB) +
-                        parseFloat(report.totalTxMB)
-                      ).toString()
+                      bytesToMB(report.totalRx) + bytesToMB(report.totalTx)
                     )}
                   </span>
                 </div>
@@ -211,17 +211,17 @@ export default function DeviceDetailPage() {
                     Interfaces:
                   </h4>
                   <div className="flex flex-col gap-3">
-                    {report.interfaces.map((iface) => (
+                    {report.interfaces.map((iface, index) => (
                       <div
-                        key={iface.id}
+                        key={`${iface.name}-${index}`}
                         className="flex justify-between items-center px-3 py-3 bg-gray-50 rounded-lg text-sm"
                       >
                         <span className="font-semibold text-gray-800">
                           {iface.name}
                         </span>
                         <span className="text-gray-600">
-                          RX: {formatMB(iface.totalRxMB)} | TX:{' '}
-                          {formatMB(iface.totalTxMB)}
+                          RX: {formatMB(bytesToMB(iface.totalRx))} | TX:{' '}
+                          {formatMB(bytesToMB(iface.totalTx))}
                         </span>
                       </div>
                     ))}
