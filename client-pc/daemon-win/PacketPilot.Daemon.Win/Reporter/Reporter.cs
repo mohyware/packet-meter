@@ -13,23 +13,41 @@ using System.Threading.Tasks;
 
 namespace PacketPilot.Daemon.Win.Reporter
 {
-    public class InterfaceUsageReport
+    public class AppRegistration
     {
-        public string Interface { get; set; } = "";
+        public string Identifier { get; set; } = "";
+        public string? DisplayName { get; set; }
+        public string? IconHash { get; set; }
+    }
+
+    public class AppUsageData
+    {
+        public string Identifier { get; set; } = "";
+        public ulong TotalRx { get; set; }
+        public ulong TotalTx { get; set; }
+    }
+
+    public class AppUsageReport
+    {
+        public string Identifier { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string IconHash { get; set; } = "";
         public ulong TotalRx { get; set; }
         public ulong TotalTx { get; set; }
         public double TotalRxMB { get; set; }
         public double TotalTxMB { get; set; }
     }
 
-    public class DailyUsageReport
+    public class RegisterAppsRequest
     {
-        public string DeviceId { get; set; } = "";
-        public DateTime Timestamp { get; set; }
-        public string Date { get; set; } = ""; // YYYY-MM-DD
-        public List<InterfaceUsageReport> Interfaces { get; set; } = new();
-        public double TotalRxMB { get; set; }
-        public double TotalTxMB { get; set; }
+        public List<AppRegistration> Apps { get; set; } = new();
+    }
+
+    public class UsageReportRequest
+    {
+        public string Timestamp { get; set; } = "";
+        public string Date { get; set; } = "";
+        public List<AppUsageData> Apps { get; set; } = new();
     }
 
     public class ServerResponse
@@ -147,46 +165,101 @@ namespace PacketPilot.Daemon.Win.Reporter
                 return;
             }
 
-            _logger.Debug("Got daily usage data", "interfaces_count", usage.Interfaces.Count, "date", usage.Date);
+            _logger.Debug("Got daily usage data", "apps_count", usage.Apps.Count, "date", usage.Date);
 
-            var interfaceReports = new List<InterfaceUsageReport>();
-            ulong totalRx = 0, totalTx = 0;
-
-            foreach (var kvp in usage.Interfaces.OrderBy(x => x.Key))
-            {
-                var iface = kvp.Key;
-                var stats = kvp.Value;
-
-                var interfaceReport = new InterfaceUsageReport
+            // Step 1: Register or update apps first
+            var appsToRegister = usage.Apps.Values
+                .Select(app => new AppRegistration
                 {
-                    Interface = iface,
-                    TotalRx = stats.TotalRx,
-                    TotalTx = stats.TotalTx,
-                    TotalRxMB = (double)stats.TotalRx / (1024 * 1024),
-                    TotalTxMB = (double)stats.TotalTx / (1024 * 1024)
-                };
-                interfaceReports.Add(interfaceReport);
+                    Identifier = app.Identifier,
+                    DisplayName = string.IsNullOrEmpty(app.DisplayName) ? null : app.DisplayName,
+                    IconHash = string.IsNullOrEmpty(app.IconHash) ? null : app.IconHash
+                })
+                .ToList();
 
-                // Add to totals
-                totalRx += stats.TotalRx;
-                totalTx += stats.TotalTx;
-
+            if (appsToRegister.Count > 0)
+            {
+                await RegisterAppsAsync(appsToRegister);
             }
 
-            _logger.Debug("Created interface reports", "count", interfaceReports.Count, "total_rx_mb", (double)totalRx / (1024 * 1024), "total_tx_mb", (double)totalTx / (1024 * 1024));
+            // Step 2: Send usage reports
+            ulong totalRx = 0, totalTx = 0;
+            var appUsageData = new List<AppUsageData>();
 
-            // Create report
-            var report = new DailyUsageReport
+            foreach (var kvp in usage.Apps.OrderBy(x => x.Key))
             {
-                DeviceId = _config.DeviceId,
-                Timestamp = DateTime.Now,
+                var app = kvp.Value;
+
+                appUsageData.Add(new AppUsageData
+                {
+                    Identifier = app.Identifier,
+                    TotalRx = app.TotalRx,
+                    TotalTx = app.TotalTx
+                });
+
+                // Add to totals
+                totalRx += app.TotalRx;
+                totalTx += app.TotalTx;
+            }
+
+            _logger.Debug("Created app usage data", "count", appUsageData.Count, "total_rx_mb", (double)totalRx / (1024 * 1024), "total_tx_mb", (double)totalTx / (1024 * 1024));
+
+            // Create usage report (only identifiers and usage data)
+            var usageReport = new UsageReportRequest
+            {
+                Timestamp = DateTime.UtcNow.ToString("o"),
                 Date = usage.Date,
-                Interfaces = interfaceReports,
-                TotalRxMB = (double)totalRx / (1024 * 1024),
-                TotalTxMB = (double)totalTx / (1024 * 1024)
+                Apps = appUsageData
             };
 
-            var jsonData = JsonSerializer.Serialize(report);
+            await SendUsageReportAsync(usageReport, usage.Date, appUsageData.Count, totalRx, totalTx);
+        }
+
+        private async Task RegisterAppsAsync(List<AppRegistration> apps)
+        {
+            var protocol = _config.UseTls ? "https" : "http";
+            var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/traffic/apps";
+
+            var appsPayload = new RegisterAppsRequest
+            {
+                Apps = apps
+            };
+
+            var jsonData = JsonSerializer.Serialize(appsPayload);
+            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Content = content;
+                request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
+                request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
+
+                _logger.Debug("Registering apps", "url", url, "apps_count", apps.Count);
+
+                using var response = await _httpClient.SendAsync(request, _cancellationTokenSource?.Token ?? CancellationToken.None);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.Debug("Apps registered successfully", "apps_count", apps.Count);
+                }
+                else
+                {
+                    var responseContent = await response.Content.ReadAsStringAsync();
+                    _logger.Warn("Failed to register apps", "status", (int)response.StatusCode, "message", responseContent);
+                    // Don't throw - we'll still try to send usage reports
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn("Error registering apps", "error", ex.Message);
+                // Don't throw - we'll still try to send usage reports
+            }
+        }
+
+        private async Task SendUsageReportAsync(UsageReportRequest usageReport, string date, int appsCount, ulong totalRx, ulong totalTx)
+        {
+            var jsonData = JsonSerializer.Serialize(usageReport);
             var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
             var protocol = _config.UseTls ? "https" : "http";
@@ -202,8 +275,11 @@ namespace PacketPilot.Daemon.Win.Reporter
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
                     request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
 
+                    var totalRxMB = (double)totalRx / (1024 * 1024);
+                    var totalTxMB = (double)totalTx / (1024 * 1024);
+
                     _logger.Debug("Sending daily usage report", "attempt", attempt, "url", url,
-                        "date", report.Date, "interfaces", report.Interfaces.Count, "total_rx_mb", report.TotalRxMB, "total_tx_mb", report.TotalTxMB);
+                        "date", date, "apps", appsCount, "total_rx_mb", totalRxMB, "total_tx_mb", totalTxMB);
 
                     using var response = await _httpClient.SendAsync(request, _cancellationTokenSource?.Token ?? CancellationToken.None);
 
@@ -216,10 +292,10 @@ namespace PacketPilot.Daemon.Win.Reporter
                         {
                             _logger.Info("Daily usage report sent successfully",
                                 "message", serverResp.Message,
-                                "date", report.Date,
-                                "interfaces", report.Interfaces.Count,
-                                "total_rx_mb", report.TotalRxMB,
-                                "total_tx_mb", report.TotalTxMB);
+                                "date", date,
+                                "apps", appsCount,
+                                "total_rx_mb", totalRxMB,
+                                "total_tx_mb", totalTxMB);
 
                             if (serverResp.Commands.Count > 0)
                             {

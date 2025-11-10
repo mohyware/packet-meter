@@ -5,6 +5,10 @@ using System;
 using System.CommandLine;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System.Linq;
+using System.Reflection;
 
 namespace PacketPilot.Daemon.Win
 {
@@ -16,11 +20,11 @@ namespace PacketPilot.Daemon.Win
         public static async Task<int> Main(string[] args)
         {
             // TODO: hard code cmd args for now
-            bool daemon = true;
-            string logLevel = "debug";
-            string configPath = "";
-            await RunDaemon(configPath, daemon, logLevel);
-            return 0;
+            // bool daemon = true;
+            // string logLevel = "debug";
+            // string configPath = "";
+            // await RunDaemon(configPath, daemon, logLevel);
+            // return 0;
 
             var rootCommand = new RootCommand("PacketPilot traffic monitoring daemon")
             {
@@ -61,9 +65,6 @@ namespace PacketPilot.Daemon.Win
             {
                 try
                 {
-                    daemon = true;
-                    logLevel = "debug";
-                    Console.WriteLine("--------->Starting daemon");
                     await RunDaemon(configPath, daemon, logLevel);
                 }
                 catch (Exception ex)
@@ -83,7 +84,6 @@ namespace PacketPilot.Daemon.Win
 
         private static async Task RunDaemon(string? configPath, bool daemon, string logLevel)
         {
-
             // Load configuration
             var config = ConfigLoader.Load();
 
@@ -98,46 +98,85 @@ namespace PacketPilot.Daemon.Win
                 config.Logging.Level = logLevel;
             }
 
-            // Initialize logger
             var logger = LoggerFactory.CreateLogger(config.Logging);
 
-            logger.Info("Starting PacketPilot daemon", "version", Version, "build", Build);
+            var builder = Host.CreateDefaultBuilder()
+                .ConfigureServices(services =>
+                {
+                    services.AddSingleton(config);
+                    services.AddSingleton(logger);
+                    services.AddSingleton<Daemon.Daemon>();
+                    services.AddHostedService<Daemon.HostedDaemon>();
+                })
+                .UseWindowsService(); // enables service mode when started by SCM
 
-            // Create daemon instance
-            var daemonService = new Daemon.Daemon(config, logger);
-
-            // Setup graceful shutdown
-            using var cts = new CancellationTokenSource();
-
-            // Handle Ctrl+C
-            Console.CancelKeyPress += (sender, e) =>
+            if (Environment.UserInteractive)
             {
-                e.Cancel = true;
-                logger.Info("Received signal, shutting down gracefully");
-                cts.Cancel();
-            };
+                // Console mode
+                logger.Info("Starting PacketPilot daemon (console mode)", "version", Version, "build", Build);
 
-            try
-            {
-                // Start daemon
+                var daemonService = new Daemon.Daemon(config, logger);
+                using var cts = new CancellationTokenSource();
+
+                Console.CancelKeyPress += (sender, e) =>
+                {
+                    e.Cancel = true;
+                    logger.Info("Received signal, shutting down gracefully");
+                    cts.Cancel();
+                };
 
                 await daemonService.StartAsync(cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                logger.Info("Daemon shutdown completed");
-            }
-            catch (Exception ex)
-            {
-                logger.Error("Daemon failed", "error", ex.Message);
-                throw;
-            }
-            finally
-            {
                 daemonService.Dispose();
+                logger.Info("PacketPilot daemon stopped");
+            }
+            else
+            {
+                // Service mode
+                await builder.Build().RunAsync();
             }
 
-            logger.Info("PacketPilot daemon stopped");
+            // logger.Info("Starting PacketPilot daemon", "version", Version, "build", Build);
+
+            // // Console mode: run until Ctrl+C
+            // var daemonService = new Daemon.Daemon(config, logger);
+            // using var cts = new CancellationTokenSource();
+
+            // Console.CancelKeyPress += (sender, e) =>
+            // {
+            //     e.Cancel = true;
+            //     logger.Info("Received signal, shutting down gracefully");
+            //     cts.Cancel();
+            // };
+
+            // await daemonService.StartAsync(cts.Token);
+            // daemonService.Dispose();
+            // logger.Info("PacketPilot daemon stopped");
+        }
+
+        private static IHostBuilder TryEnableWindowsService(IHostBuilder builder)
+        {
+            try
+            {
+                var assembly = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == "Microsoft.Extensions.Hosting.WindowsServices")
+                    ?? Assembly.Load("Microsoft.Extensions.Hosting.WindowsServices");
+                var type = assembly?.GetType("Microsoft.Extensions.Hosting.WindowsServices.WindowsServiceLifetimeHostBuilderExtensions");
+                var method = type?.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                    .FirstOrDefault(m => m.Name == "UseWindowsService");
+                if (method != null)
+                {
+                    var result = method.Invoke(null, new object?[] { builder, null });
+                    if (result is IHostBuilder hb)
+                    {
+                        return hb;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore and fall back to console hosting
+            }
+            return builder;
         }
     }
 }

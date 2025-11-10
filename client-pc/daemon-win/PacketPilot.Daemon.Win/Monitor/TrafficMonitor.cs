@@ -4,26 +4,26 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace PacketPilot.Daemon.Win.Monitor
 {
-    public class InterfaceUsage
+    public class AppUsage
     {
-        public string Interface { get; set; } = "";
+        public string Identifier { get; set; } = ""; // Process path (e.g., C:\Program Files\chrome.exe)
+        public string DisplayName { get; set; } = ""; // Process name (e.g., chrome)
+        public string IconHash { get; set; } = ""; // Base64 encoded icon (optional)
         public ulong TotalRx { get; set; }
         public ulong TotalTx { get; set; }
-        public ulong LastRx { get; set; }
-        public ulong LastTx { get; set; }
+        public DateTime LastSeen { get; set; }
     }
 
     public class DailyUsage
     {
         public string Date { get; set; } = ""; // YYYY-MM-DD
-        public Dictionary<string, InterfaceUsage> Interfaces { get; set; } = new();
+        public Dictionary<string, AppUsage> Apps { get; set; } = new(); // Key: process path (identifier)
     }
 
     public class TrafficMonitor
@@ -31,10 +31,10 @@ namespace PacketPilot.Daemon.Win.Monitor
         private readonly MonitorConfig _config;
         private readonly Logger.Logger _logger;
         private readonly string _usageFile;
-        private readonly List<string> _interfaces = new();
         private DailyUsage? _dailyUsage;
         private readonly ReaderWriterLockSlim _dailyMutex = new();
         private CancellationTokenSource? _cancellationTokenSource;
+        private ProcessNetworkMonitor? _processMonitor;
 
         public TrafficMonitor(MonitorConfig config, Logger.Logger logger)
         {
@@ -49,15 +49,7 @@ namespace PacketPilot.Daemon.Win.Monitor
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
-            _logger.Info("Starting daily usage monitor", "interface", _config.Interface);
-
-            // Find network interfaces to monitor
-            if (!DiscoverInterfaces())
-            {
-                throw new InvalidOperationException("Failed to discover network interfaces");
-            }
-
-            _logger.Info("Monitoring interfaces", "interfaces", string.Join(", ", _interfaces));
+            _logger.Info("Starting app-based usage monitor");
 
             // Load or initialize daily usage
             if (!LoadDailyUsage())
@@ -66,8 +58,21 @@ namespace PacketPilot.Daemon.Win.Monitor
                 InitDailyUsage();
             }
 
-            // Start daily usage tracking
-            _ = Task.Run(() => TrackDailyUsageAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+            // Start process network monitoring using ETW (required for app-based monitoring)
+            try
+            {
+                _processMonitor = new ProcessNetworkMonitor(_logger);
+                await _processMonitor.StartAsync(_cancellationTokenSource.Token);
+                _logger.Info("Process network monitoring started");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to start process network monitoring", "error", ex.Message, "note", "Process monitoring requires administrator privileges");
+                throw; // Fail if process monitoring is not available
+            }
+
+            // Start periodic aggregation of process usage into app usage
+            _ = Task.Run(() => AggregateAppUsageAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             await Task.CompletedTask;
         }
@@ -75,60 +80,8 @@ namespace PacketPilot.Daemon.Win.Monitor
         public void Stop()
         {
             _cancellationTokenSource?.Cancel();
+            _processMonitor?.Stop();
             _cancellationTokenSource?.Dispose();
-        }
-
-        private bool DiscoverInterfaces()
-        {
-            try
-            {
-                // avoid non-active interfaces
-                var networkInterfaces = NetworkInterface.GetAllNetworkInterfaces()
-                    .Where(ni => ni.OperationalStatus == OperationalStatus.Up &&
-                                (ni.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ||
-                                ni.NetworkInterfaceType == NetworkInterfaceType.Ethernet))
-                    .Where(ni => !ni.Name.Contains("QoS") &&
-                                !ni.Name.Contains("WFP") &&
-                                !ni.Name.Contains("Filter") &&
-                                !ni.Name.Contains("Packet Scheduler") &&
-                                !ni.Name.Contains("Virtual") &&
-                                (ni.GetIPv4Statistics().BytesReceived > 0 ||
-                                 ni.GetIPv4Statistics().BytesSent > 0))
-                    .Select(ni => ni.Name)
-                    .Distinct()
-                    .ToList();
-
-                if (_config.Interface == "any")
-                {
-                    _interfaces.AddRange(networkInterfaces);
-                }
-                else
-                {
-                    if (networkInterfaces.Contains(_config.Interface))
-                    {
-                        _interfaces.Add(_config.Interface);
-                    }
-                    else
-                    {
-                        _logger.Error("Interface not found", "interface", _config.Interface);
-                        return false;
-                    }
-                }
-
-                if (_interfaces.Count == 0)
-                {
-                    _logger.Error("No suitable network interfaces found");
-                    return false;
-                }
-
-                _interfaces.Sort();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.Error("Failed to discover interfaces", "error", ex.Message);
-                return false;
-            }
         }
 
         private bool LoadDailyUsage()
@@ -152,52 +105,19 @@ namespace PacketPilot.Daemon.Win.Monitor
                     return true;
                 }
 
-                // Check if we have data for all current interfaces
-                var missingInterfaces = _interfaces.Where(iface => !usage.Interfaces.ContainsKey(iface)).ToList();
-
-                if (missingInterfaces.Count > 0)
+                // Load existing usage
+                _dailyMutex.EnterWriteLock();
+                try
                 {
-                    _logger.Info("Found new interfaces, initializing them", "interfaces", string.Join(", ", missingInterfaces));
-                    _dailyMutex.EnterWriteLock();
-                    try
-                    {
-                        _dailyUsage = usage;
-                        foreach (var iface in missingInterfaces)
-                        {
-                            InitInterfaceUsageLocked(iface);
-                        }
-                    }
-                    finally
-                    {
-                        _dailyMutex.ExitWriteLock();
-                    }
-                    SaveDailyUsage();
+                    _dailyUsage = usage;
                 }
-                else
+                finally
                 {
-                    _dailyMutex.EnterWriteLock();
-                    try
-                    {
-                        _dailyUsage = usage;
-                    }
-                    finally
-                    {
-                        _dailyMutex.ExitWriteLock();
-                    }
+                    _dailyMutex.ExitWriteLock();
                 }
 
-                // Log loaded usage for each interface
-                foreach (var iface in _interfaces.OrderBy(x => x))
-                {
-                    if (usage.Interfaces.TryGetValue(iface, out var stats))
-                    {
-                        _logger.Info("Loaded daily usage for interface",
-                            "interface", iface,
-                            "date", usage.Date,
-                            "total_rx_mb", (double)stats.TotalRx / (1024 * 1024),
-                            "total_tx_mb", (double)stats.TotalTx / (1024 * 1024));
-                    }
-                }
+                // Log loaded usage
+                _logger.Info("Loaded daily usage", "date", usage.Date, "apps", usage.Apps.Count);
 
                 return true;
             }
@@ -218,13 +138,8 @@ namespace PacketPilot.Daemon.Win.Monitor
                 _dailyUsage = new DailyUsage
                 {
                     Date = today,
-                    Interfaces = new Dictionary<string, InterfaceUsage>()
+                    Apps = new Dictionary<string, AppUsage>()
                 };
-
-                foreach (var iface in _interfaces)
-                {
-                    InitInterfaceUsageLocked(iface);
-                }
             }
             finally
             {
@@ -232,30 +147,10 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
 
             SaveDailyUsage();
-            _logger.Info("Initialized daily usage for all interfaces", "date", today, "interfaces", string.Join(", ", _interfaces));
+            _logger.Info("Initialized daily usage for apps", "date", today);
         }
 
-        private void InitInterfaceUsageLocked(string iface)
-        {
-            var (rx, tx) = ReadInterfaceCounters(iface);
-            if (rx == 0 && tx == 0)
-            {
-                _logger.Warn("Failed to read interface counters, starting with zeros", "interface", iface);
-            }
-
-            _dailyUsage!.Interfaces[iface] = new InterfaceUsage
-            {
-                Interface = iface,
-                TotalRx = 0,
-                TotalTx = 0,
-                LastRx = rx,
-                LastTx = tx
-            };
-
-            _logger.Info("Initialized interface usage", "interface", iface, "last_rx", rx, "last_tx", tx);
-        }
-
-        private async Task TrackDailyUsageAsync(CancellationToken cancellationToken)
+        private async Task AggregateAppUsageAsync(CancellationToken cancellationToken)
         {
             TimeSpan interval = _config.UpdateInterval.Last() switch
             {
@@ -271,7 +166,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 try
                 {
                     await timer.WaitForNextTickAsync(cancellationToken);
-                    UpdateDailyUsage();
+                    UpdateAppUsage();
                 }
                 catch (OperationCanceledException)
                 {
@@ -279,24 +174,64 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
                 catch (Exception ex)
                 {
-                    _logger.Error("Error in daily usage tracking", "error", ex.Message);
+                    _logger.Error("Error in app usage aggregation", "error", ex.Message);
                 }
             }
 
-            _logger.Info("Daily usage monitor stopped");
+            _logger.Info("App usage aggregation stopped");
         }
 
-        private void UpdateDailyUsage()
+        private void UpdateAppUsage()
         {
+            if (_processMonitor == null)
+                return;
+
             _dailyMutex.EnterWriteLock();
             try
             {
                 if (_dailyUsage == null)
                     return;
 
-                foreach (var kvp in _dailyUsage.Interfaces)
+                // Get current process usage from ProcessNetworkMonitor
+                var processUsage = _processMonitor.GetProcessUsage();
+
+                // Aggregate process usage by app (process path)
+                // ProcessNetworkMonitor tracks cumulative usage since monitor started
+                // We'll use these values directly for reporting (server handles hourly grouping)
+                foreach (var process in processUsage.Values)
                 {
-                    UpdateInterfaceUsage(kvp.Key, kvp.Value);
+                    // Use process path as identifier, fallback to process name if path is empty
+                    var identifier = !string.IsNullOrEmpty(process.ProcessPath)
+                        ? process.ProcessPath
+                        : process.ProcessName;
+
+                    if (!_dailyUsage.Apps.TryGetValue(identifier, out var appUsage))
+                    {
+                        // Create new app entry
+                        appUsage = new AppUsage
+                        {
+                            Identifier = identifier,
+                            DisplayName = process.ProcessName,
+                            IconHash = process.ProcessIconBase64,
+                            TotalRx = 0,
+                            TotalTx = 0,
+                            LastSeen = DateTime.Now
+                        };
+                        _dailyUsage.Apps[identifier] = appUsage;
+                    }
+
+                    // Update app usage - store current process usage values
+                    // Note: These are cumulative since ProcessNetworkMonitor started, not daily totals
+                    // The server will handle proper hourly/daily aggregation
+                    appUsage.TotalRx = process.TotalRxBytes;
+                    appUsage.TotalTx = process.TotalTxBytes;
+                    appUsage.LastSeen = process.LastSeen;
+
+                    // Update display name and icon if process info is available
+                    if (!string.IsNullOrEmpty(process.ProcessName))
+                        appUsage.DisplayName = process.ProcessName;
+                    if (!string.IsNullOrEmpty(process.ProcessIconBase64))
+                        appUsage.IconHash = process.ProcessIconBase64;
                 }
 
                 SaveDailyUsage();
@@ -304,54 +239,6 @@ namespace PacketPilot.Daemon.Win.Monitor
             finally
             {
                 _dailyMutex.ExitWriteLock();
-            }
-        }
-
-        private void UpdateInterfaceUsage(string iface, InterfaceUsage stats)
-        {
-            var (rx, tx) = ReadInterfaceCounters(iface);
-            _logger.Debug("Read interface counters", "interface", iface, "rx", rx, "tx", tx);
-            if (rx == 0 && tx == 0)
-            {
-                _logger.Warn("Failed to read interface counters", "interface", iface);
-                return;
-            }
-
-            // Calculate delta since last read
-            var deltaRx = rx - stats.LastRx;
-            var deltaTx = tx - stats.LastTx;
-
-            // Add to daily totals
-            stats.TotalRx += deltaRx;
-            stats.TotalTx += deltaTx;
-            stats.LastRx = rx;
-            stats.LastTx = tx;
-
-            _logger.Debug("Interface usage updated",
-                "interface", iface,
-                "delta_rx_kb", (double)deltaRx / 1024,
-                "delta_tx_kb", (double)deltaTx / 1024,
-                "total_rx_mb", (double)stats.TotalRx / (1024 * 1024),
-                "total_tx_mb", (double)stats.TotalTx / (1024 * 1024));
-        }
-
-        private (ulong rx, ulong tx) ReadInterfaceCounters(string iface)
-        {
-            try
-            {
-                var networkInterface = NetworkInterface.GetAllNetworkInterfaces()
-                    .FirstOrDefault(ni => ni.Name == iface);
-
-                if (networkInterface == null)
-                    return (0, 0);
-
-                var stats = networkInterface.GetIPStatistics();
-                return ((ulong)stats.BytesReceived, (ulong)stats.BytesSent);
-            }
-            catch (Exception ex)
-            {
-                _logger.Debug("Failed to read interface counters", "interface", iface, "error", ex.Message);
-                return (0, 0);
             }
         }
 
@@ -386,18 +273,19 @@ namespace PacketPilot.Daemon.Win.Monitor
                 var usage = new DailyUsage
                 {
                     Date = _dailyUsage.Date,
-                    Interfaces = new Dictionary<string, InterfaceUsage>()
+                    Apps = new Dictionary<string, AppUsage>()
                 };
 
-                foreach (var kvp in _dailyUsage.Interfaces.OrderBy(x => x.Key))
+                foreach (var kvp in _dailyUsage.Apps.OrderBy(x => x.Key))
                 {
-                    usage.Interfaces[kvp.Key] = new InterfaceUsage
+                    usage.Apps[kvp.Key] = new AppUsage
                     {
-                        Interface = kvp.Value.Interface,
+                        Identifier = kvp.Value.Identifier,
+                        DisplayName = kvp.Value.DisplayName,
+                        IconHash = kvp.Value.IconHash,
                         TotalRx = kvp.Value.TotalRx,
                         TotalTx = kvp.Value.TotalTx,
-                        LastRx = kvp.Value.LastRx,
-                        LastTx = kvp.Value.LastTx
+                        LastSeen = kvp.Value.LastSeen
                     };
                 }
 
@@ -416,10 +304,10 @@ namespace PacketPilot.Daemon.Win.Monitor
             {
                 if (_dailyUsage != null)
                 {
-                    foreach (var stats in _dailyUsage.Interfaces.Values)
+                    foreach (var app in _dailyUsage.Apps.Values)
                     {
-                        stats.TotalRx = 0;
-                        stats.TotalTx = 0;
+                        app.TotalRx = 0;
+                        app.TotalTx = 0;
                     }
                     SaveDailyUsage();
                 }
@@ -429,11 +317,12 @@ namespace PacketPilot.Daemon.Win.Monitor
                 _dailyMutex.ExitWriteLock();
             }
 
-            _logger.Info("Daily usage statistics reset for all interfaces");
+            _logger.Info("Daily usage statistics reset for all apps");
         }
 
         public void Dispose()
         {
+            _processMonitor?.Dispose();
             _dailyMutex?.Dispose();
             _cancellationTokenSource?.Dispose();
         }
