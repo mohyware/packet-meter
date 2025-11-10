@@ -10,23 +10,14 @@ using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net;
+using PacketPilot.Daemon.Win.Models;
+using PacketPilot.Daemon.Win.Utils;
 
 namespace PacketPilot.Daemon.Win.Monitor
 {
-    public class ProcessNetworkUsage
-    {
-        public int ProcessId { get; set; }
-        public string ProcessName { get; set; } = "";
-        public string ProcessPath { get; set; } = "";
-        public string ProcessIconBase64 { get; set; } = "";
-        public ulong TotalRxBytes { get; set; }
-        public ulong TotalTxBytes { get; set; }
-        public DateTime LastSeen { get; set; }
-    }
-
     public class ProcessInfo
     {
         public string Name { get; set; } = "";
@@ -38,6 +29,8 @@ namespace PacketPilot.Daemon.Win.Monitor
     public class ProcessNetworkMonitor : IDisposable
     {
         private readonly Logger.Logger _logger;
+
+        private readonly Config.MonitorConfig _config;
         private TraceEventSession? _etwSession;
         private Task? _processingTask;
         private readonly ConcurrentDictionary<int, ProcessNetworkUsage> _processUsage = new();
@@ -50,12 +43,13 @@ namespace PacketPilot.Daemon.Win.Monitor
         private readonly ConcurrentDictionary<int, ProcessInfo> _processInfoCache = new();
         private readonly System.Timers.Timer? _processNameRefreshTimer;
 
-        public ProcessNetworkMonitor(Logger.Logger logger)
+        public ProcessNetworkMonitor(Logger.Logger logger, Config.MonitorConfig config)
         {
             _logger = logger;
+            _config = config;
 
-            // Refresh process name cache every 5 seconds to handle process name changes
-            _processNameRefreshTimer = new System.Timers.Timer(5000);
+            // Refresh process name cache every 30 seconds to handle process name changes
+            _processNameRefreshTimer = new System.Timers.Timer(30000);
             _processNameRefreshTimer.Elapsed += (sender, e) => RefreshProcessNames();
             _processNameRefreshTimer.AutoReset = true;
             _processNameRefreshTimer.Start();
@@ -92,7 +86,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     catch (Exception ex)
                     {
                         _logger.Warn("Error stopping existing ETW session", "error", ex.Message);
-                        // Ignore if session doesn't exist or can't be stopped
                     }
 
                     _etwSession = new TraceEventSession(sessionName);
@@ -131,7 +124,6 @@ namespace PacketPilot.Daemon.Win.Monitor
             {
                 try
                 {
-                    // Stop processing events first
                     _etwSession?.Source?.StopProcessing();
                 }
                 catch (Exception ex)
@@ -185,7 +177,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     // Skip localhost / loopback
                     if (IsLocalAddress(data.saddr) && IsLocalAddress(data.daddr))
                     {
-                        _logger.Debug("Skipping localhost / loopback TCP send event", "process_id", data.ProcessID);
                         return;
                     }
 
@@ -196,7 +187,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                         if (pid > 0 && size > 0)
                         {
-                            UpdateProcessUsage(pid, txBytes: (ulong)size, rxBytes: 0);
+                            UpdateProcessUsage(pid, txBytes: (long)size, rxBytes: 0);
                         }
                     }
                     catch (Exception ex)
@@ -211,7 +202,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    // Skip localhost / loopback
                     if (IsLocalAddress(data.saddr) && IsLocalAddress(data.daddr))
                         return;
 
@@ -222,7 +212,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                         if (pid > 0 && size > 0)
                         {
-                            UpdateProcessUsage(pid, txBytes: 0, rxBytes: (ulong)size);
+                            UpdateProcessUsage(pid, txBytes: 0, rxBytes: (long)size);
                         }
                     }
                     catch (Exception ex)
@@ -237,7 +227,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    // Skip localhost / loopback
                     if (IsLocalAddress(data.saddr) && IsLocalAddress(data.daddr))
                         return;
 
@@ -248,7 +237,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                         if (pid > 0 && size > 0)
                         {
-                            UpdateProcessUsage(pid, txBytes: (ulong)size, rxBytes: 0);
+                            UpdateProcessUsage(pid, txBytes: (long)size, rxBytes: 0);
                         }
                     }
                     catch (Exception ex)
@@ -263,7 +252,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     if (cancellationToken.IsCancellationRequested)
                         return;
 
-                    // Skip localhost / loopback
                     if (IsLocalAddress(data.saddr) && IsLocalAddress(data.daddr))
                         return;
 
@@ -274,7 +262,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                         if (pid > 0 && size > 0)
                         {
-                            UpdateProcessUsage(pid, txBytes: 0, rxBytes: (ulong)size);
+                            UpdateProcessUsage(pid, txBytes: 0, rxBytes: (long)size);
                         }
                     }
                     catch (Exception ex)
@@ -308,22 +296,12 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private static bool IsLocalAddress(IPAddress ipAddress)
+        private static bool IsLocalAddress(IPAddress? address)
         {
-            var address = ipAddress.ToString();
-
-            if (string.IsNullOrWhiteSpace(address))
-                return false;
-
-            if (IPAddress.TryParse(address, out var ip))
-            {
-                return IPAddress.IsLoopback(ip);
-            }
-
-            return false;
+            return address != null && IPAddress.IsLoopback(address);
         }
 
-        private void UpdateProcessUsage(int processId, ulong txBytes, ulong rxBytes)
+        private void UpdateProcessUsage(int processId, long txBytes, long rxBytes)
         {
             _processUsageLock.EnterUpgradeableReadLock();
             try
@@ -366,7 +344,6 @@ namespace PacketPilot.Daemon.Win.Monitor
         {
             try
             {
-                // Extract icon using Icon.ExtractAssociatedIcon - much simpler!
                 var icon = System.Drawing.Icon.ExtractAssociatedIcon(exePath);
                 if (icon == null)
                 {
@@ -375,7 +352,6 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                 using (icon)
                 {
-                    // Convert icon to base64
                     using var ms = new MemoryStream();
                     icon.Save(ms);
                     byte[] iconBytes = ms.ToArray();
@@ -405,26 +381,13 @@ namespace PacketPilot.Daemon.Win.Monitor
                 try
                 {
                     // Try to get the main module path
-                    // Note: This requires appropriate permissions and may fail for system processes
                     if (process.MainModule != null && !string.IsNullOrEmpty(process.MainModule.FileName))
                     {
                         path = process.MainModule.FileName;
                     }
                 }
-                catch (System.ComponentModel.Win32Exception)
-                {
-                    // Access denied - some processes (especially system processes) may not allow access to MainModule
-                    // Leave path empty for these processes
-                    path = "";
-                }
-                catch (InvalidOperationException)
-                {
-                    // Process has exited or MainModule is not available
-                    path = "";
-                }
                 catch
                 {
-                    // Other exceptions - leave path empty
                     path = "";
                 }
 
@@ -438,7 +401,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                     }
                     catch
                     {
-                        // If icon extraction fails, leave it empty
                         iconBase64 = "";
                     }
                 }
@@ -504,9 +466,9 @@ namespace PacketPilot.Daemon.Win.Monitor
                         }
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Ignore errors during refresh
+                    _logger.Debug("Error refreshing process names", "error", ex.Message);
                 }
             }
 
@@ -521,23 +483,28 @@ namespace PacketPilot.Daemon.Win.Monitor
 
         private async Task LogProcessUsagePeriodically(CancellationToken cancellationToken)
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    await timer.WaitForNextTickAsync(cancellationToken);
-                    LogProcessUsage();
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("Error in periodic process usage logging", "error", ex.Message);
-                }
+                await AsyncTask.RunPeriodicAsync(
+                    OtherUtils.ParseTimeSpan(_config.UpdateInterval),
+                    token =>
+                    {
+                        try
+                        {
+                            LogProcessUsage();
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error("Error in periodic process usage logging", "error", ex.Message);
+                        }
+
+                        return Task.CompletedTask;
+                    },
+                    cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Info("Process usage logging stopped");
             }
         }
 
@@ -563,7 +530,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                         {
                             if (_processUsage.TryRemove(pid, out var usage))
                             {
-                                _logger.Info("Removed stale process from monitoring",
+                                _logger.Debug("Removed stale process from monitoring",
                                     "pid", pid,
                                     "process_name", usage.ProcessName,
                                     "process_path", usage.ProcessPath,
@@ -581,45 +548,37 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
 
                 // Calculate total usage across all processes
-                ulong totalRxBytes = 0;
-                ulong totalTxBytes = 0;
+                long totalRxBytes = 0;
+                long totalTxBytes = 0;
                 foreach (var process in _processUsage.Values)
                 {
                     totalRxBytes += process.TotalRxBytes;
                     totalTxBytes += process.TotalTxBytes;
                 }
 
-                // Log total process usage
                 if (totalRxBytes > 0 || totalTxBytes > 0)
                 {
                     _logger.Info("Total process network usage",
-                        "total_rx_bytes", totalRxBytes,
-                        "total_tx_bytes", totalTxBytes,
-                        "total_rx_mb", (double)totalRxBytes / (1024 * 1024),
-                        "total_tx_mb", (double)totalTxBytes / (1024 * 1024),
                         "total_mb", (double)(totalRxBytes + totalTxBytes) / (1024 * 1024),
                         "process_count", _processUsage.Count);
                 }
 
-                // Log active processes with significant network usage
+                // Log top 20 processes
                 var activeProcesses = _processUsage.Values
                     .Where(p => p.TotalRxBytes > 0 || p.TotalTxBytes > 0)
                     .OrderByDescending(p => p.TotalRxBytes + p.TotalTxBytes)
-                    .Take(20) // Log top 20 processes
+                    .Take(20)
                     .ToList();
 
                 if (activeProcesses.Count > 0)
                 {
-                    _logger.Info("Process network usage summary",
+                    _logger.Debug("Process network usage summary",
                         "active_processes", activeProcesses.Count);
 
                     foreach (var process in activeProcesses)
                     {
                         _logger.Info("Process network usage",
-                            "pid", process.ProcessId,
                             "process_name", process.ProcessName,
-                            "rx_bytes", process.TotalRxBytes,
-                            "tx_bytes", process.TotalTxBytes,
                             "total_mb", (double)(process.TotalRxBytes + process.TotalTxBytes) / (1024 * 1024));
                     }
                 }

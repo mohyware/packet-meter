@@ -8,77 +8,26 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using PacketPilot.Daemon.Win.Utils;
 using System.Threading;
 using System.Threading.Tasks;
-
+using PacketPilot.Daemon.Win.Models;
 namespace PacketPilot.Daemon.Win.Reporter
 {
-    public class AppRegistration
-    {
-        public string Identifier { get; set; } = "";
-        public string? DisplayName { get; set; }
-        public string? IconHash { get; set; }
-    }
-
-    public class AppUsageData
-    {
-        public string Identifier { get; set; } = "";
-        public ulong TotalRx { get; set; }
-        public ulong TotalTx { get; set; }
-    }
-
-    public class AppUsageReport
-    {
-        public string Identifier { get; set; } = "";
-        public string DisplayName { get; set; } = "";
-        public string IconHash { get; set; } = "";
-        public ulong TotalRx { get; set; }
-        public ulong TotalTx { get; set; }
-        public double TotalRxMB { get; set; }
-        public double TotalTxMB { get; set; }
-    }
-
-    public class RegisterAppsRequest
-    {
-        public List<AppRegistration> Apps { get; set; } = new();
-    }
-
-    public class UsageReportRequest
-    {
-        public string Timestamp { get; set; } = "";
-        public string Date { get; set; } = "";
-        public List<AppUsageData> Apps { get; set; } = new();
-    }
-
-    public class ServerResponse
-    {
-        public bool Success { get; set; }
-        public string Message { get; set; } = "";
-        public List<Command> Commands { get; set; } = new();
-    }
-
-    public class Command
-    {
-        public string Type { get; set; } = "";
-        public string AppName { get; set; } = "";
-        public string Action { get; set; } = "";
-    }
-
-
     public class Reporter
     {
         private readonly ReporterConfig _config;
         private readonly Logger.Logger _logger;
         private readonly HttpClient _httpClient;
-        private readonly TrafficMonitor _monitor;
+        private readonly ProcessNetworkMonitor _processMonitor;
         private CancellationTokenSource? _cancellationTokenSource;
 
-        public Reporter(ReporterConfig config, Logger.Logger logger, TrafficMonitor monitor)
+        public Reporter(ReporterConfig config, Logger.Logger logger, ProcessNetworkMonitor processMonitor)
         {
             _config = config;
             _logger = logger;
-            _monitor = monitor;
-            _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            _processMonitor = processMonitor;
+            _httpClient = new HttpClient { Timeout = OtherUtils.ParseTimeSpan(_config.ReportInterval) };
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -92,27 +41,28 @@ namespace PacketPilot.Daemon.Win.Reporter
             // Send initial health check when starting
             await SendHealthCheckAsync();
 
-            var interval = ParseTimeSpan(_config.ReportInterval);
-            using var timer = new PeriodicTimer(interval);
-
-            while (!_cancellationTokenSource.Token.IsCancellationRequested)
+            var interval = OtherUtils.ParseTimeSpan(_config.ReportInterval);
+            try
             {
-                try
-                {
-                    await timer.WaitForNextTickAsync(_cancellationTokenSource.Token);
-                    await SendReportAsync();
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("Failed to send report", "error", ex.ToString());
-                }
+                await AsyncTask.RunPeriodicAsync(
+                    interval,
+                    async token =>
+                    {
+                        try
+                        {
+                            await SendReportAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Error("Failed to send report", "error", ex.ToString());
+                        }
+                    },
+                    _cancellationTokenSource.Token);
             }
-
-            _logger.Info("Daily usage reporter stopped");
+            catch (OperationCanceledException)
+            {
+                _logger.Info("Daily usage reporter stopped");
+            }
         }
 
         public void Stop()
@@ -157,18 +107,39 @@ namespace PacketPilot.Daemon.Win.Reporter
 
         private async Task SendReportAsync()
         {
-            // Get current daily usage from monitor
-            var usage = _monitor.GetDailyUsage();
-            if (usage == null)
+
+            var processUsage = _processMonitor.GetProcessUsage();
+
+            var usageApps = new Dictionary<string, AppUsage>();
+
+            // Aggregate process usage by app (process path or name)
+            // ProcessNetworkMonitor tracks cumulative usage since monitor started
+            // We'll use these values directly for reporting (server handles hourly grouping)
+            foreach (var process in processUsage.Values)
             {
-                _logger.Debug("No daily usage data to report");
+                var identifier = !string.IsNullOrEmpty(process.ProcessPath)
+                    ? process.ProcessPath
+                    : process.ProcessName;
+
+                usageApps[identifier] = new AppUsage
+                {
+                    Identifier = identifier,
+                    DisplayName = process.ProcessName,
+                    IconHash = process.ProcessIconBase64,
+                    TotalRx = process.TotalRxBytes,
+                    TotalTx = process.TotalTxBytes,
+                    LastSeen = process.LastSeen
+                };
+            }
+
+            if (usageApps == null || usageApps.Count == 0)
+            {
+                _logger.Debug("No usage data to report");
                 return;
             }
 
-            _logger.Debug("Got daily usage data", "apps_count", usage.Apps.Count, "date", usage.Date);
-
-            // Step 1: Register or update apps first
-            var appsToRegister = usage.Apps.Values
+            // Register or update apps first
+            var appsToRegister = usageApps.Values
                 .Select(app => new AppRegistration
                 {
                     Identifier = app.Identifier,
@@ -182,11 +153,11 @@ namespace PacketPilot.Daemon.Win.Reporter
                 await RegisterAppsAsync(appsToRegister);
             }
 
-            // Step 2: Send usage reports
-            ulong totalRx = 0, totalTx = 0;
+            // Send usage reports
+            long totalRx = 0, totalTx = 0;
             var appUsageData = new List<AppUsageData>();
 
-            foreach (var kvp in usage.Apps.OrderBy(x => x.Key))
+            foreach (var kvp in usageApps.OrderBy(x => x.Key))
             {
                 var app = kvp.Value;
 
@@ -205,14 +176,15 @@ namespace PacketPilot.Daemon.Win.Reporter
             _logger.Debug("Created app usage data", "count", appUsageData.Count, "total_rx_mb", (double)totalRx / (1024 * 1024), "total_tx_mb", (double)totalTx / (1024 * 1024));
 
             // Create usage report (only identifiers and usage data)
+            var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
             var usageReport = new UsageReportRequest
             {
                 Timestamp = DateTime.UtcNow.ToString("o"),
-                Date = usage.Date,
+                Date = today,
                 Apps = appUsageData
             };
 
-            await SendUsageReportAsync(usageReport, usage.Date, appUsageData.Count, totalRx, totalTx);
+            await SendUsageReportAsync(usageReport, today, appUsageData.Count, totalRx, totalTx);
         }
 
         private async Task RegisterAppsAsync(List<AppRegistration> apps)
@@ -247,17 +219,15 @@ namespace PacketPilot.Daemon.Win.Reporter
                 {
                     var responseContent = await response.Content.ReadAsStringAsync();
                     _logger.Warn("Failed to register apps", "status", (int)response.StatusCode, "message", responseContent);
-                    // Don't throw - we'll still try to send usage reports
                 }
             }
             catch (Exception ex)
             {
                 _logger.Warn("Error registering apps", "error", ex.Message);
-                // Don't throw - we'll still try to send usage reports
             }
         }
 
-        private async Task SendUsageReportAsync(UsageReportRequest usageReport, string date, int appsCount, ulong totalRx, ulong totalTx)
+        private async Task SendUsageReportAsync(UsageReportRequest usageReport, string date, int appsCount, long totalRx, long totalTx)
         {
             var jsonData = JsonSerializer.Serialize(usageReport);
             var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
@@ -296,11 +266,6 @@ namespace PacketPilot.Daemon.Win.Reporter
                                 "apps", appsCount,
                                 "total_rx_mb", totalRxMB,
                                 "total_tx_mb", totalTxMB);
-
-                            if (serverResp.Commands.Count > 0)
-                            {
-                                HandleCommands(serverResp.Commands);
-                            }
                         }
 
                         return;
@@ -313,7 +278,6 @@ namespace PacketPilot.Daemon.Win.Reporter
                             "status", (int)response.StatusCode,
                             "message", responseContent);
 
-                        // Send health check to update lastHealthCheck so user sees approval needed
                         await SendHealthCheckAsync();
 
                         lastException = new HttpRequestException($"Device not activated. Please wait for user approval.");
@@ -333,7 +297,7 @@ namespace PacketPilot.Daemon.Win.Reporter
 
                 if (attempt < _config.RetryAttempts)
                 {
-                    var delay = ParseTimeSpan(_config.RetryDelay);
+                    var delay = OtherUtils.ParseTimeSpan(_config.RetryDelay);
                     await Task.Delay(delay, _cancellationTokenSource?.Token ?? CancellationToken.None);
                 }
             }
@@ -342,62 +306,6 @@ namespace PacketPilot.Daemon.Win.Reporter
             {
                 _logger.Error("All report attempts failed", "error", lastException.Message);
                 throw lastException;
-            }
-        }
-
-        private void HandleCommands(List<Command> commands)
-        {
-            _logger.Info("Received commands from server", "count", commands.Count);
-            foreach (var cmd in commands)
-            {
-                _logger.Info("Processing command", "type", cmd.Type, "app", cmd.AppName, "action", cmd.Action);
-                switch (cmd.Type)
-                {
-                    case "block_app":
-                        HandleBlockApp(cmd.AppName, cmd.Action);
-                        break;
-                    case "limit_app":
-                        HandleLimitApp(cmd.AppName, cmd.Action);
-                        break;
-                    default:
-                        _logger.Warn("Unknown command type", "type", cmd.Type);
-                        break;
-                }
-            }
-        }
-
-        private void HandleBlockApp(string appName, string action)
-        {
-            _logger.Info("Block app command", "app", appName, "action", action);
-            // TODO: Implement app blocking logic
-        }
-
-        private void HandleLimitApp(string appName, string action)
-        {
-            _logger.Info("Limit app command", "app", appName, "action", action);
-            // TODO: Implement app limiting logic
-        }
-
-        private static TimeSpan ParseTimeSpan(string value)
-        {
-            if (value.EndsWith("s"))
-            {
-                var seconds = int.Parse(value[..^1]);
-                return TimeSpan.FromSeconds(seconds);
-            }
-            else if (value.EndsWith("m"))
-            {
-                var minutes = int.Parse(value[..^1]);
-                return TimeSpan.FromMinutes(minutes);
-            }
-            else if (value.EndsWith("h"))
-            {
-                var hours = int.Parse(value[..^1]);
-                return TimeSpan.FromHours(hours);
-            }
-            else
-            {
-                return TimeSpan.Parse(value);
             }
         }
 

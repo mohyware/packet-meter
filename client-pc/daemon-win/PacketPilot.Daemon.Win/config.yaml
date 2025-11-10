@@ -16,10 +16,9 @@ monitor:
   interface: "any"
   update_interval: "5s"
   buffer_size: 1000
-  usage_file: "C:\\Users\\mohie\\packetpilot\\data\\daily_usage.json"
 
 reporter:
   report_interval: "5s"
   batch_size: 100
-  retry_attempts: 3
+  retry_attempts: 3 
   retry_delay: "5s"

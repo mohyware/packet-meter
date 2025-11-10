@@ -12,7 +12,7 @@ namespace PacketPilot.Daemon.Win.Daemon
     {
         private readonly Config.Config _config;
         private readonly Logger.Logger _logger;
-        private readonly TrafficMonitor _monitor;
+        private readonly ProcessNetworkMonitor _processMonitor;
         private readonly PacketPilot.Daemon.Win.Reporter.Reporter _reporter;
         private CancellationTokenSource? _cancellationTokenSource;
 
@@ -22,7 +22,7 @@ namespace PacketPilot.Daemon.Win.Daemon
             _logger = logger;
 
             // Create monitor
-            _monitor = new TrafficMonitor(_config.Monitor, _logger);
+            _processMonitor = new ProcessNetworkMonitor(_logger, _config.Monitor);
 
             // Create reporter
             var reporterConfig = new ReporterConfig
@@ -38,19 +38,19 @@ namespace PacketPilot.Daemon.Win.Daemon
                 RetryDelay = _config.Reporter.RetryDelay
             };
 
-            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _monitor);
+            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _processMonitor);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             _cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            
+
             _logger.Info("Starting PacketPilot daemon components");
 
             try
             {
                 // Start traffic monitor
-                var monitorTask = _monitor.StartAsync(_cancellationTokenSource.Token);
+                var monitorTask = _processMonitor.StartAsync(_cancellationTokenSource.Token);
 
                 // Start reporter
                 var reporterTask = _reporter.StartAsync(_cancellationTokenSource.Token);
@@ -77,24 +77,19 @@ namespace PacketPilot.Daemon.Win.Daemon
         public void Stop()
         {
             _cancellationTokenSource?.Cancel();
-            _monitor?.Stop();
+            _processMonitor?.Stop();
             _reporter?.Stop();
         }
 
-        public DailyUsage? GetDailyUsage()
-        {
-            return _monitor?.GetDailyUsage();
-        }
-
-        public void ResetStats()
-        {
-            _monitor?.ResetStats();
-        }
+        // public void ResetStats()
+        // {
+        //     _processMonitor?.ResetStats();
+        // }
 
         public void Dispose()
         {
             _cancellationTokenSource?.Dispose();
-            _monitor?.Dispose();
+            _processMonitor?.Dispose();
             _reporter?.Dispose();
         }
     }

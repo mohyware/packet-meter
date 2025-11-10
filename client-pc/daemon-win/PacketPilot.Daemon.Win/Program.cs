@@ -87,12 +87,6 @@ namespace PacketPilot.Daemon.Win
             // Load configuration
             var config = ConfigLoader.Load();
 
-            // Override config with command line options
-            if (!string.IsNullOrEmpty(configPath))
-            {
-                // TODO: Load from specific config path
-            }
-
             if (!string.IsNullOrEmpty(logLevel))
             {
                 config.Logging.Level = logLevel;

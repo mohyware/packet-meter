@@ -3,9 +3,11 @@ using System;
 using System.IO;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using PacketPilot.Daemon.Win.Logger;
 
 namespace PacketPilot.Daemon.Win.Config
 {
+
     public class Config
     {
         public ServerConfig Server { get; set; } = new();
@@ -55,11 +57,11 @@ namespace PacketPilot.Daemon.Win.Config
 
     public static class ConfigLoader
     {
+
         public static Config Load()
         {
             var config = new Config();
 
-            // Try to load from YAML file first
             if (File.Exists("config.yaml"))
             {
                 try
@@ -76,9 +78,6 @@ namespace PacketPilot.Daemon.Win.Config
                 }
             }
 
-            // Load environment variables
-            // LoadEnvironmentVariables(config);
-
             // Set defaults
             SetDefaults(config);
 
@@ -86,39 +85,6 @@ namespace PacketPilot.Daemon.Win.Config
             Validate(config);
 
             return config;
-        }
-
-        private static void LoadEnvironmentVariables(Config config)
-        {
-            // Server config from environment
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_SERVER_HOST") is string serverHost)
-                config.Server.Host = serverHost;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_SERVER_PORT") is string serverPort && int.TryParse(serverPort, out int port))
-                config.Server.Port = port;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_SERVER_USE_TLS") is string useTls && bool.TryParse(useTls, out bool tls))
-                config.Server.UseTls = tls;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_SERVER_API_KEY") is string apiKey)
-                config.Server.ApiKey = apiKey;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_SERVER_DEVICE_ID") is string deviceId)
-                config.Server.DeviceId = deviceId;
-
-            // Logging config from environment
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_LOGGING_LEVEL") is string logLevel)
-                config.Logging.Level = logLevel;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_LOGGING_FILE") is string logFile)
-                config.Logging.File = logFile;
-
-            // Monitor config from environment
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_MONITOR_INTERFACE") is string monitorInterface)
-                config.Monitor.Interface = monitorInterface;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_MONITOR_UPDATE_INTERVAL") is string updateInterval)
-                config.Monitor.UpdateInterval = updateInterval;
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_MONITOR_USAGE_FILE") is string usageFile)
-                config.Monitor.UsageFile = usageFile;
-
-            // Reporter config from environment
-            if (Environment.GetEnvironmentVariable("PACKETPILOT_REPORTER_REPORT_INTERVAL") is string reportInterval)
-                config.Reporter.ReportInterval = reportInterval;
         }
 
         private static void SetDefaults(Config config)
@@ -148,8 +114,6 @@ namespace PacketPilot.Daemon.Win.Config
                 config.Monitor.UpdateInterval = "5s";
             if (config.Monitor.BufferSize <= 0)
                 config.Monitor.BufferSize = 1000;
-            if (string.IsNullOrEmpty(config.Monitor.UsageFile))
-                config.Monitor.UsageFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PacketPilot", "daily_usage.json");
 
             // Reporter defaults
             if (string.IsNullOrEmpty(config.Reporter.ReportInterval))
@@ -181,17 +145,18 @@ namespace PacketPilot.Daemon.Win.Config
                 if (machineId != null)
                     return machineId.ToString() ?? "unknown-device";
             }
-            catch
+            catch (Exception ex)
             {
-                // Fallback to computer name
+                Console.WriteLine($"Warning: Failed to get machine ID from registry: {ex.Message}");
             }
 
             try
             {
                 return Environment.MachineName;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Warning: Failed to get machine name from environment: {ex.Message}");
                 return "unknown-device";
             }
         }

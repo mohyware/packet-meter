@@ -1,53 +1,45 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace OpenNetMeter.Utilities
+namespace PacketPilot.Daemon.Win.Utils
 {
-    internal class AsyncTask : IDisposable
+    public static class AsyncTask
     {
-        public Task? Task { get; set; }
-        public PeriodicTimer Timer { get; set; }
-        public CancellationTokenSource CancelToken { get; set; }
-        /// <summary>
-        /// use this to create a seperate thread
-        /// </summary>
-        /// <param name="seconds">how often to run this task</param>
-        public AsyncTask(int seconds)
+        public static Task RunPeriodicAsync(TimeSpan interval, Func<CancellationToken, Task> callback, CancellationToken cancellationToken, bool runImmediately = false)
         {
-            Task = null;
-            Timer = new PeriodicTimer(TimeSpan.FromSeconds(seconds));
-            CancelToken = new CancellationTokenSource();
-        }
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
 
-        private async void StopProcess()
-        {
-            try
+            if (interval <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(interval), "Interval must be greater than zero.");
+
+            return Task.Run(async () =>
             {
-                if (Task is null)
+                if (runImmediately)
                 {
-                    return;
+                    await callback(cancellationToken).ConfigureAwait(false);
                 }
 
-                CancelToken.Cancel();
-                await Task;
-                Task = null;
-                CancelToken.Dispose();
-                Debug.WriteLine("Operation Cancelled");
-            }
-            catch (Exception ex)
-            {
-                EventLogger.Error(ex.Message);
-            }
+                using var timer = new PeriodicTimer(interval);
+
+                while (await timer.WaitForNextTickAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    await callback(cancellationToken).ConfigureAwait(false);
+                }
+            }, cancellationToken);
         }
 
-        public void Dispose()
+        public static Task RunPeriodicAsync(TimeSpan interval, Action callback, CancellationToken cancellationToken, bool runImmediately = false)
         {
-            StopProcess();
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            return RunPeriodicAsync(interval, token =>
+            {
+                callback();
+                return Task.CompletedTask;
+            }, cancellationToken, runImmediately);
         }
     }
 }
