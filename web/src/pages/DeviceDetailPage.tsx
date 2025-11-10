@@ -114,12 +114,13 @@ export default function DeviceDetailPage() {
           )}
           <div className="flex items-center gap-4 mt-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
+              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
+                device.status === 'active'
                   ? 'bg-green-100 text-green-800'
                   : device.status === 'pendingApproval'
                     ? 'bg-yellow-100 text-yellow-800'
                     : 'bg-gray-100 text-gray-800'
-                }`}
+              }`}
             >
               {device.status === 'active'
                 ? 'Active'
@@ -205,26 +206,34 @@ export default function DeviceDetailPage() {
                   </span>
                 </div>
               </div>
-              {report.interfaces.length > 0 && (
+              {report.apps.length > 0 && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h4 className="text-base font-semibold text-gray-800 mb-4">
-                    Interfaces:
+                    Apps:
                   </h4>
                   <div className="flex flex-col gap-3">
-                    {report.interfaces.map((iface, index) => (
-                      <div
-                        key={`${iface.name}-${index}`}
-                        className="flex justify-between items-center px-3 py-3 bg-gray-50 rounded-lg text-sm"
-                      >
-                        <span className="font-semibold text-gray-800">
-                          {iface.name}
-                        </span>
-                        <span className="text-gray-600">
-                          RX: {formatMB(bytesToMB(iface.totalRx))} | TX:{' '}
-                          {formatMB(bytesToMB(iface.totalTx))}
-                        </span>
-                      </div>
-                    ))}
+                    {[...report.apps]
+                      .slice()
+                      .sort(
+                        (a, b) =>
+                          bytesToMB(b.totalRx) +
+                          bytesToMB(b.totalTx) -
+                          (bytesToMB(a.totalRx) + bytesToMB(a.totalTx))
+                      )
+                      .map((app, index) => (
+                        <div
+                          key={`${app.id}-${index}`}
+                          className="flex justify-between items-center px-3 py-3 bg-gray-50 rounded-lg text-sm"
+                        >
+                          <span className="font-semibold text-gray-800">
+                            {app.displayName ?? app.identifier}
+                          </span>
+                          <span className="text-gray-600">
+                            RX: {formatMB(bytesToMB(app.totalRx))} | TX:{' '}
+                            {formatMB(bytesToMB(app.totalTx))}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}

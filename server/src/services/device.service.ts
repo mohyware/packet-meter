@@ -1,5 +1,5 @@
 import { eq, desc, and, InferSelectModel } from 'drizzle-orm';
-import { db, devices, reports } from '../db';
+import { db, devices, reports, apps } from '../db';
 import {
   generateDeviceToken,
   hashDeviceToken,
@@ -145,39 +145,89 @@ export async function getDeviceWithUsage(deviceId: string) {
 }
 
 /**
+ * Find or create an app for a device
+ */
+export async function findOrCreateApp(
+  deviceId: string,
+  identifier: string,
+  displayName?: string,
+  iconHash?: string
+) {
+  // Try to find existing app
+  const existingApp = await db.query.apps.findFirst({
+    where: and(eq(apps.deviceId, deviceId), eq(apps.identifier, identifier)),
+  });
+
+  if (existingApp) {
+    // Update display name and icon hash if provided
+    if (displayName !== undefined || iconHash !== undefined) {
+      const [updatedApp] = await db
+        .update(apps)
+        .set({
+          displayName: displayName ?? existingApp.displayName,
+          iconHash: iconHash ?? existingApp.iconHash,
+          updatedAt: new Date(),
+        })
+        .where(eq(apps.id, existingApp.id))
+        .returning();
+      return updatedApp;
+    }
+    return existingApp;
+  }
+
+  // Create new app
+  const [newApp] = await db
+    .insert(apps)
+    .values({
+      deviceId,
+      identifier,
+      displayName: displayName ?? null,
+      iconHash: iconHash ?? null,
+    })
+    .returning();
+
+  return newApp;
+}
+
+/**
  * Get device usage reports
- * Aggregates interface-level reports by UTC hour and returns device-level totals
+ * Aggregates app-level reports by UTC hour and returns device-level totals
  * Results are grouped by UTC hour and can be filtered by local timezone
  */
-export async function getDeviceReports(
-  deviceId: string,
-  limit = 100,
-) {
-  // Get all reports for this device, ordered by timestamp
+export async function getDeviceReports(deviceId: string, limit = 100) {
+  // Get all reports for this device with app information, ordered by timestamp
   const allReports = await db.query.reports.findMany({
     where: eq(reports.deviceId, deviceId),
+    with: {
+      app: true,
+    },
     orderBy: desc(reports.timestamp),
-    limit: limit * 10, // Get more to account for multiple interfaces per hour
+    limit: limit * 100, // Get more to account for multiple apps per hour
   });
 
   // Group by UTC hour and aggregate
-  const reportsByHour = new Map<string, {
-    timestamp: Date;
-    interfaces: {
-      name: string;
-      totalRx: string;
-      totalTx: string;
-    }[];
-    totalRxBytes: bigint;
-    totalTxBytes: bigint;
-  }>();
+  const reportsByHour = new Map<
+    string,
+    {
+      timestamp: Date;
+      apps: {
+        id: string;
+        identifier: string;
+        displayName: string | null;
+        totalRx: string;
+        totalTx: string;
+      }[];
+      totalRxBytes: bigint;
+      totalTxBytes: bigint;
+    }
+  >();
 
   for (const report of allReports) {
     const hourKey = report.timestamp.toISOString();
     if (!reportsByHour.has(hourKey)) {
       reportsByHour.set(hourKey, {
         timestamp: report.timestamp,
-        interfaces: [],
+        apps: [],
         totalRxBytes: BigInt(0),
         totalTxBytes: BigInt(0),
       });
@@ -187,8 +237,10 @@ export async function getDeviceReports(
     const rxBytes = BigInt(report.totalRx);
     const txBytes = BigInt(report.totalTx);
 
-    hourReport.interfaces.push({
-      name: report.interfaceName,
+    hourReport.apps.push({
+      id: report.appId,
+      identifier: report.app.identifier,
+      displayName: report.app.displayName,
       totalRx: report.totalRx,
       totalTx: report.totalTx,
     });
@@ -206,40 +258,10 @@ export async function getDeviceReports(
       timestamp: report.timestamp,
       totalRx: report.totalRxBytes.toString(),
       totalTx: report.totalTxBytes.toString(),
-      interfaces: report.interfaces,
+      apps: report.apps,
     }));
 
   return result;
-}
-
-/**
- * Get interface usage reports
- * Returns usage for a specific interface, grouped by UTC hour
- */
-export async function getInterfaceUsage(
-  deviceId: string,
-  interfaceName: string,
-  limit = 100
-) {
-  const interfaceReports = await db.query.reports.findMany({
-    where: and(
-      eq(reports.deviceId, deviceId),
-      eq(reports.interfaceName, interfaceName)
-    ),
-    orderBy: desc(reports.timestamp),
-    limit,
-  });
-
-  return interfaceReports.map((report) => ({
-    id: report.id,
-    deviceId: report.deviceId,
-    interfaceName: report.interfaceName,
-    timestamp: report.timestamp,
-    totalRx: report.totalRx,
-    totalTx: report.totalTx,
-    createdAt: report.createdAt,
-    updatedAt: report.updatedAt,
-  }));
 }
 
 /**
@@ -259,21 +281,21 @@ export async function updateDeviceName(deviceId: string, name: string) {
 }
 
 /**
- * Delete a device (cascades to reports and interfaces)
+ * Delete a device (cascades to reports and apps)
  */
 export async function deleteDevice(deviceId: string) {
   await db.delete(devices).where(eq(devices.id, deviceId));
 }
 
 /**
- * Create or update usage reports (one per interface per UTC hour)
- * Stores reports grouped by UTC hour, with one record per interface per hour
+ * Create or update usage reports (one per app per UTC hour)
+ * Stores reports grouped by UTC hour, with one record per app per hour
  */
 export async function createUsageReport(data: {
   deviceId: string;
   timestamp: Date;
-  interfaces: {
-    name: string;
+  apps: {
+    identifier: string;
     totalRx: number;
     totalTx: number;
   }[];
@@ -281,15 +303,38 @@ export async function createUsageReport(data: {
   // Round timestamp to UTC hour for storage
   const utcHour = roundToUTCHour(data.timestamp);
 
-  // Create or update report for each interface
+  // Create or update report for each app
   const createdReports = [];
 
-  for (const iface of data.interfaces) {
-    // Check if report exists for this device, interface, and UTC hour
+  for (const appData of data.apps) {
+    // Find the app (it should already be registered, but find it anyway)
+    // let app = await db.query.apps.findFirst({
+    //   where: and(
+    //     eq(apps.deviceId, data.deviceId),
+    //     eq(apps.identifier, appData.identifier)
+    //   ),
+    // });
+
+    // if (!app) {
+    // App not found - try to create it as a fallback
+    // This can happen if app registration failed or was skipped
+    // logger.warn(
+    //   `App not found for device ${data.deviceId}, identifier: ${appData.identifier}, creating as fallback`
+    // );
+    const app = await findOrCreateApp(
+      data.deviceId,
+      appData.identifier,
+      undefined,
+      undefined
+    );
+
+    // }
+
+    // Check if report exists for this device, app, and UTC hour
     const existingReport = await db.query.reports.findFirst({
       where: and(
         eq(reports.deviceId, data.deviceId),
-        eq(reports.interfaceName, iface.name),
+        eq(reports.appId, app.id),
         eq(reports.timestamp, utcHour)
       ),
     });
@@ -299,8 +344,8 @@ export async function createUsageReport(data: {
       const [updatedReport] = await db
         .update(reports)
         .set({
-          totalRx: iface.totalRx.toString(),
-          totalTx: iface.totalTx.toString(),
+          totalRx: appData.totalRx.toString(),
+          totalTx: appData.totalTx.toString(),
           updatedAt: new Date(),
         })
         .where(eq(reports.id, existingReport.id))
@@ -313,10 +358,10 @@ export async function createUsageReport(data: {
         .insert(reports)
         .values({
           deviceId: data.deviceId,
-          interfaceName: iface.name,
+          appId: app.id,
           timestamp: utcHour,
-          totalRx: iface.totalRx.toString(),
-          totalTx: iface.totalTx.toString(),
+          totalRx: appData.totalRx.toString(),
+          totalTx: appData.totalTx.toString(),
         })
         .returning();
 

@@ -128,8 +128,8 @@ export default function LandingPage() {
                 Detailed Reports
               </h3>
               <p className="text-gray-600 leading-relaxed text-base">
-                View per-interface statistics, daily summaries, and historical
-                data. Understand exactly where your bandwidth goes.
+                View per-app statistics, daily summaries, and historical data.
+                Understand exactly where your bandwidth goes.
               </p>
             </div>
             <div className="bg-white p-10 rounded-xl shadow-md hover:-translate-y-1 hover:shadow-lg transition-all">

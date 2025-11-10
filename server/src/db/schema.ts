@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   varchar,
+  text,
   timestamp,
   boolean,
   numeric,
@@ -9,8 +10,8 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
-// Usage reports table - stores interface-level usage data grouped by UTC hour
-// One report per device per interface per UTC hour (unique constraint on deviceId + interfaceName + timestamp hour)
+// Usage reports table - stores app-level usage data grouped by UTC hour
+// One report per device per app per UTC hour (unique constraint on deviceId + appId + timestamp hour)
 // Timestamps are stored in UTC and rounded to the hour
 // Queries use user's local timezone to filter and aggregate data
 export const reports = pgTable(
@@ -20,23 +21,44 @@ export const reports = pgTable(
     deviceId: uuid('device_id')
       .references(() => devices.id, { onDelete: 'cascade' })
       .notNull(),
-    interfaceName: varchar('interface_name', { length: 100 }).notNull(),
+
+    appId: uuid('app_id')
+      .references(() => apps.id, { onDelete: 'cascade' })
+      .notNull(),
+
     timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
     totalRx: numeric('total_rx', { precision: 20, scale: 0 }).notNull(),
     totalTx: numeric('total_tx', { precision: 20, scale: 0 }).notNull(),
+
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   (table) => ({
-    uniqueDeviceInterfaceHour: unique().on(
+    uniqueDeviceAppHour: unique().on(
       table.deviceId,
-      table.interfaceName,
+      table.appId,
       table.timestamp
     ),
   })
 );
 
-// Users table
+export const apps = pgTable('apps', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: uuid('device_id')
+    .references(() => devices.id, { onDelete: 'cascade' })
+    .notNull(),
+
+  // Unique identity of an app per device
+  identifier: varchar('identifier', { length: 300 }).notNull(),
+  // Windows → full exe path (C:\Program Files\chrome.exe)
+  // Android → package name (com.whatsapp)
+
+  displayName: varchar('display_name', { length: 255 }),
+  iconHash: text('icon_hash'), // Base64 encoded icon data
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   username: varchar('username', { length: 100 }).notNull(),
@@ -47,7 +69,6 @@ export const users = pgTable('users', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// Devices table
 export const devices = pgTable('devices', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id')
@@ -61,7 +82,6 @@ export const devices = pgTable('devices', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   devices: many(devices),
@@ -73,12 +93,25 @@ export const devicesRelations = relations(devices, ({ one, many }) => ({
     references: [users.id],
   }),
   reports: many(reports),
+  apps: many(apps),
+}));
+
+export const appsRelations = relations(apps, ({ one, many }) => ({
+  device: one(devices, {
+    fields: [apps.deviceId],
+    references: [devices.id],
+  }),
+  reports: many(reports),
 }));
 
 export const reportsRelations = relations(reports, ({ one }) => ({
   device: one(devices, {
     fields: [reports.deviceId],
     references: [devices.id],
+  }),
+  app: one(apps, {
+    fields: [reports.appId],
+    references: [apps.id],
   }),
 }));
 
@@ -87,5 +120,7 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Device = typeof devices.$inferSelect;
 export type NewDevice = typeof devices.$inferInsert;
+export type App = typeof apps.$inferSelect;
+export type NewApp = typeof apps.$inferInsert;
 export type Report = typeof reports.$inferSelect;
 export type NewReport = typeof reports.$inferInsert;

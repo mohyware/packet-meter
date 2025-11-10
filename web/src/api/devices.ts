@@ -27,8 +27,10 @@ export interface DeviceUsageReport {
     timestamp: string
     totalRx: string
     totalTx: string
-    interfaces: {
-        name: string
+    apps: {
+        id: string
+        identifier: string
+        displayName: string | null
         totalRx: string
         totalTx: string
     }[]

@@ -47,7 +47,7 @@ export function roundToUTCHour(date: Date): Date {
 /**
  * Get UTC hour range for a date in a local timezone
  * Returns start and end UTC hours that cover the entire day in the local timezone
- * 
+ *
  * Strategy: Use Intl.DateTimeFormat to get what a UTC timestamp looks like in the target timezone,
  * then work backwards to find the UTC timestamps that correspond to midnight and end of day in that timezone.
  */
@@ -64,9 +64,14 @@ export function getUTCHourRangeForLocalDay(
       day: '2-digit',
     }).formatToParts(localDate);
 
-    const year = parseInt(localParts.find((p) => p.type === 'year')?.value ?? '0');
-    const month = parseInt(localParts.find((p) => p.type === 'month')?.value ?? '0') - 1;
-    const day = parseInt(localParts.find((p) => p.type === 'day')?.value ?? '0');
+    const year = parseInt(
+      localParts.find((p) => p.type === 'year')?.value ?? '0'
+    );
+    const month =
+      parseInt(localParts.find((p) => p.type === 'month')?.value ?? '0') - 1;
+    const day = parseInt(
+      localParts.find((p) => p.type === 'day')?.value ?? '0'
+    );
 
     // Create a UTC date for midnight on this date (treating it as if it were UTC)
     // Then we'll find what UTC time actually shows as midnight in the target timezone
@@ -150,10 +155,7 @@ export function getUTCHourRangeForLocalDay(
  * Convert a date/time in local timezone to UTC hour
  * Useful for converting a specific timestamp from device to UTC hour for storage
  */
-export function convertLocalTimeToUTCHour(
-  date: Date,
-  _timezone: string
-): Date {
+export function convertLocalTimeToUTCHour(date: Date, _timezone: string): Date {
   try {
     // The date is already a JavaScript Date (which is UTC internally)
     // But if it represents a time in a specific timezone, we need to convert it

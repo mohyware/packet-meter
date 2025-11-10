@@ -32,14 +32,24 @@ export const deviceHealthCheckSchema = z.object({
   deviceId: z.string().uuid(),
 });
 
-const interfaceUsageSchema = z.object({
-  Interface: z.string(),
+const appSchema = z.object({
+  Identifier: z.string(),
+  DisplayName: z.string(),
+  IconHash: z.string().nullable(),
+});
+
+const appUsageSchema = z.object({
+  Identifier: z.string(),
   TotalRx: z.number().nonnegative(),
   TotalTx: z.number().nonnegative(),
+});
+
+export const registerAppsSchema = z.object({
+  Apps: z.array(appSchema),
 });
 
 export const dailyUsageReportSchema = z.object({
   Timestamp: z.string(),
   Date: z.string(), // YYYY-MM-DD
-  Interfaces: z.array(interfaceUsageSchema),
+  Apps: z.array(appUsageSchema),
 });

@@ -170,7 +170,7 @@ router.get(
 
       const reports = await deviceService.getDeviceReports(
         deviceId,
-        limit,
+        limit
         // timezone
       );
 
@@ -180,48 +180,6 @@ router.get(
       });
     } catch (error: unknown) {
       logger.error('Get device usage error:', error);
-      return res
-        .status(500)
-        .json({ success: false, message: 'internal server error' });
-    }
-  }
-);
-
-/**
- * GET /api/v1/devices/:deviceId/interfaces/:interfaceName/usage
- * Get usage reports for a specific interface on a device
- */
-router.get(
-  '/:deviceId/interfaces/:interfaceName/usage',
-  requireAuth,
-  async (req: Request, res: Response) => {
-    try {
-      const deviceId = req.params.deviceId;
-      const interfaceName = req.params.interfaceName;
-      const device = await deviceService.getDeviceById(deviceId);
-
-      if (!device || device.userId !== req.userId) {
-        return res
-          .status(404)
-          .json({ success: false, message: 'device not found' });
-      }
-
-      const limit = req.query.limit
-        ? parseInt(req.query.limit as string, 10)
-        : 100;
-
-      const reports = await deviceService.getInterfaceUsage(
-        deviceId,
-        interfaceName,
-        limit
-      );
-
-      return res.json({
-        success: true,
-        reports,
-      });
-    } catch (error: unknown) {
-      logger.error('Get interface usage error:', error);
       return res
         .status(500)
         .json({ success: false, message: 'internal server error' });
@@ -254,7 +212,10 @@ router.patch('/:deviceId', requireAuth, async (req: Request, res: Response) => {
         .json({ success: false, message: 'device not found' });
     }
 
-    const updated = await deviceService.updateDeviceName(deviceId, parse.data.name);
+    const updated = await deviceService.updateDeviceName(
+      deviceId,
+      parse.data.name
+    );
 
     // Determine status
     let status: 'pending' | 'pendingApproval' | 'active';
