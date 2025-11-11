@@ -73,11 +73,20 @@ export const devicesApi = {
      */
     getDeviceUsage: async (
         deviceId: string,
-        limit = 100
+        limit = 100,
+        period?: 'hours' | 'days' | 'months',
+        count?: number
     ): Promise<DeviceUsageResponse> => {
+        const params: Record<string, string | number> = { limit }
+        if (period) {
+            params.period = period
+        }
+        if (count !== undefined) {
+            params.count = count
+        }
         const { data } = await apiClient.get<DeviceUsageResponse>(
             `/api/v1/devices/${deviceId}/usage`,
-            { params: { limit } }
+            { params }
         )
         return data
     },

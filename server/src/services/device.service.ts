@@ -6,6 +6,8 @@ import {
   verifyDeviceToken,
 } from '../utils/auth';
 import { roundToUTCHour } from '../utils/timezone';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { startOfDay, subDays, startOfMonth, subMonths } from 'date-fns';
 
 export interface CreateDeviceInput {
   userId: string;
@@ -192,18 +194,80 @@ export async function findOrCreateApp(
 /**
  * Get device usage reports
  * Aggregates app-level reports by UTC hour and returns device-level totals
- * Results are grouped by UTC hour and can be filtered by local timezone
  */
-export async function getDeviceReports(deviceId: string, limit = 100) {
+export async function getDeviceReports(
+  deviceId: string,
+  timezone: string,
+  limit = 100,
+  period?: 'hours' | 'days' | 'months',
+  count?: number
+) {
+  // Calculate start date based on period and count
+  // Use UTC methods since timestamps are stored in UTC and rounded to hour boundaries
+  let startDate: Date | undefined;
+  let endDate: Date | undefined;
+  if (period && count && count > 0) {
+    const now = new Date();
+
+    switch (period) {
+      case 'hours': {
+        // For "last N hours", we want the current hour plus the previous (N-1) hours
+        const currentHour = roundToUTCHour(now);
+        startDate = new Date(currentHour);
+        startDate.setUTCHours(startDate.getUTCHours() - (count - 1));
+        endDate = new Date(currentHour);
+        endDate.setUTCHours(endDate.getUTCHours() + 1);
+        endDate.setUTCMinutes(0);
+        endDate.setUTCSeconds(0);
+        endDate.setUTCMilliseconds(0);
+        break;
+      }
+      case 'days': {
+        // For "last N days", we want the current day plus the previous (N-1) days
+        // Use timezone-aware calculation: get start of current day in user's timezone,
+        const nowInTimezone = toZonedTime(now, timezone);
+        const startOfCurrentDay = startOfDay(nowInTimezone);
+        const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
+        // Convert back to UTC for comparison with database timestamps (stored in UTC)
+        startDate = fromZonedTime(startOfTargetDay, timezone);
+        break;
+      }
+      case 'months': {
+        const nowInTimezone = toZonedTime(now, timezone);
+        const startOfCurrentMonth = startOfMonth(nowInTimezone);
+        const startOfTargetMonth = subMonths(startOfCurrentMonth, count - 1);
+        startDate = fromZonedTime(startOfTargetMonth, timezone);
+        break;
+      }
+    }
+  }
+
   // Get all reports for this device with app information, ordered by timestamp
+  // We fetch a large limit and filter in memory for time-based filtering
+  const fetchLimit = startDate ? limit * 1000 : limit * 100; // Fetch more if filtering by time
   const allReports = await db.query.reports.findMany({
     where: eq(reports.deviceId, deviceId),
     with: {
       app: true,
     },
     orderBy: desc(reports.timestamp),
-    limit: limit * 100, // Get more to account for multiple apps per hour
+    limit: fetchLimit,
   });
+
+  // Filter by time period if specified
+  const filteredReports = startDate
+    ? allReports.filter((report) => {
+      if (period === 'hours' && endDate) {
+        // For hours, compare timestamps directly but ensure we're working with hour boundaries
+        const reportTime = report.timestamp.getTime();
+        const startTime = startDate.getTime();
+        const endTime = endDate.getTime();
+        return reportTime >= startTime && reportTime < endTime;
+      }
+      // For days and months, use simple >= comparison
+      return report.timestamp.getTime() >= startDate.getTime();
+    })
+    : allReports;
 
   // Group by UTC hour and aggregate
   const reportsByHour = new Map<
@@ -222,7 +286,7 @@ export async function getDeviceReports(deviceId: string, limit = 100) {
     }
   >();
 
-  for (const report of allReports) {
+  for (const report of filteredReports) {
     const hourKey = report.timestamp.toISOString();
     if (!reportsByHour.has(hourKey)) {
       reportsByHour.set(hourKey, {

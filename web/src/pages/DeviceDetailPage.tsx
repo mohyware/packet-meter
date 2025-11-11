@@ -1,13 +1,19 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDeviceUsage, useDevices } from '../hooks/useDevices';
+import { TimePeriodSelector, TimePeriod } from '../components/TimePeriodSelector';
+import { DownloadUploadChart } from '../components/UsageChart';
 
 export default function DeviceDetailPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod | null>(null);
+  const [selectedCount, setSelectedCount] = useState(1);
   const { reports, isLoading: isLoadingUsage } = useDeviceUsage(
     deviceId ?? '',
-    100
+    1000,
+    selectedPeriod ?? undefined,
+    selectedPeriod ? selectedCount : undefined
   );
   const {
     devices,
@@ -38,18 +44,6 @@ export default function DeviceDetailPage() {
       </div>
     );
   }
-
-  // Helper function to convert bytes to MB
-  const bytesToMB = (bytes: string): number => {
-    return parseFloat(bytes) / (1024 * 1024);
-  };
-
-  const formatMB = (mb: number) => {
-    if (mb >= 1024) {
-      return `${(mb / 1024).toFixed(2)} GB`;
-    }
-    return `${mb.toFixed(2)} MB`;
-  };
 
   const handleEditName = async () => {
     if (!editName.trim() || !deviceId) return;
@@ -88,7 +82,6 @@ export default function DeviceDetailPage() {
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 className="text-3xl font-semibold text-gray-800 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
-                autoFocus
               />
               <button
                 onClick={handleEditName}
@@ -114,13 +107,12 @@ export default function DeviceDetailPage() {
           )}
           <div className="flex items-center gap-4 mt-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
-                device.status === 'active'
-                  ? 'bg-green-100 text-green-800'
-                  : device.status === 'pendingApproval'
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : 'bg-gray-100 text-gray-800'
-              }`}
+              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
+                ? 'bg-green-100 text-green-800'
+                : device.status === 'pendingApproval'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-gray-100 text-gray-800'
+                }`}
             >
               {device.status === 'active'
                 ? 'Active'
@@ -156,9 +148,13 @@ export default function DeviceDetailPage() {
         )}
       </div>
 
-      <h3 className="text-2xl font-semibold text-gray-800 mb-6">
-        Usage Reports
-      </h3>
+      <TimePeriodSelector
+        selectedPeriod={selectedPeriod}
+        selectedCount={selectedCount}
+        onPeriodChange={setSelectedPeriod}
+        onCountChange={setSelectedCount}
+      />
+
       {reports.length === 0 ? (
         <div className="text-center py-12 text-gray-600">
           <p>
@@ -168,77 +164,10 @@ export default function DeviceDetailPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          {reports.map((report) => (
-            <div key={report.id} className="bg-white rounded-lg p-6 shadow-sm">
-              <div className="flex justify-between items-center mb-4 pb-4 border-b border-gray-200">
-                <h3 className="text-xl font-semibold text-gray-800 m-0">
-                  {new Date(report.timestamp).toLocaleDateString()}
-                </h3>
-                <span className="text-sm text-gray-600">
-                  {new Date(report.timestamp).toLocaleTimeString()}
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs text-gray-600 uppercase tracking-wide">
-                    Total Received
-                  </span>
-                  <span className="text-2xl font-semibold text-gray-800">
-                    {formatMB(bytesToMB(report.totalRx))}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs text-gray-600 uppercase tracking-wide">
-                    Total Sent
-                  </span>
-                  <span className="text-2xl font-semibold text-gray-800">
-                    {formatMB(bytesToMB(report.totalTx))}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs text-gray-600 uppercase tracking-wide">
-                    Total Combined
-                  </span>
-                  <span className="text-2xl font-semibold text-blue-600">
-                    {formatMB(
-                      bytesToMB(report.totalRx) + bytesToMB(report.totalTx)
-                    )}
-                  </span>
-                </div>
-              </div>
-              {report.apps.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h4 className="text-base font-semibold text-gray-800 mb-4">
-                    Apps:
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    {[...report.apps]
-                      .slice()
-                      .sort(
-                        (a, b) =>
-                          bytesToMB(b.totalRx) +
-                          bytesToMB(b.totalTx) -
-                          (bytesToMB(a.totalRx) + bytesToMB(a.totalTx))
-                      )
-                      .map((app, index) => (
-                        <div
-                          key={`${app.id}-${index}`}
-                          className="flex justify-between items-center px-3 py-3 bg-gray-50 rounded-lg text-sm"
-                        >
-                          <span className="font-semibold text-gray-800">
-                            {app.displayName ?? app.identifier}
-                          </span>
-                          <span className="text-gray-600">
-                            RX: {formatMB(bytesToMB(app.totalRx))} | TX:{' '}
-                            {formatMB(bytesToMB(app.totalTx))}
-                          </span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+          <DownloadUploadChart
+            reports={reports}
+            period={selectedPeriod ?? undefined}
+          />
         </div>
       )}
 

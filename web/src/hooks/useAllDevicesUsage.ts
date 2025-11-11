@@ -22,17 +22,25 @@ interface AllDevicesStats {
     devicesSortedByUsage: DeviceWithUsage[];
 }
 
-export const useAllDevicesUsage = () => {
+export const useAllDevicesUsage = (
+    period?: 'hours' | 'days' | 'months',
+    count?: number
+) => {
     const { devices } = useDevices();
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['allDevicesUsage', devices.map(d => d.id)],
+        queryKey: ['allDevicesUsage', devices.map(d => d.id), period, count],
         queryFn: async () => {
             // Fetch usage for all active devices
             const activeDevices = devices.filter(d => d.status === 'active');
             const usagePromises = activeDevices.map(async (device) => {
                 try {
-                    const response = await devicesApi.getDeviceUsage(device.id, 1000);
+                    const response = await devicesApi.getDeviceUsage(
+                        device.id,
+                        1000,
+                        period,
+                        count
+                    );
                     return {
                         deviceId: device.id,
                         deviceName: device.name,

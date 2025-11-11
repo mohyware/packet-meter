@@ -72,10 +72,15 @@ export const useDevices = () => {
     }
 }
 
-export const useDeviceUsage = (deviceId: string, limit = 100) => {
+export const useDeviceUsage = (
+    deviceId: string,
+    limit = 100,
+    period?: 'hours' | 'days' | 'months',
+    count?: number
+) => {
     const { data, isLoading, error } = useQuery({
-        queryKey: ['devices', deviceId, 'usage', limit],
-        queryFn: () => devicesApi.getDeviceUsage(deviceId, limit),
+        queryKey: ['devices', deviceId, 'usage', limit, period, count],
+        queryFn: () => devicesApi.getDeviceUsage(deviceId, limit, period, count),
         enabled: !!deviceId,
     })
 

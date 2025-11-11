@@ -4,8 +4,7 @@ import * as deviceService from '../services/device.service';
 import { requireAuth } from '../middleware/auth';
 import { createDeviceSchema, updateDeviceSchema } from './validation';
 import logger from '../utils/logger';
-// import { eq } from 'drizzle-orm';
-// import { db, users } from '../db';
+import * as userService from '../services/user.service';
 
 const router = Router();
 
@@ -141,7 +140,11 @@ router.post(
 /**
  * GET /api/v1/devices/:deviceId/usage
  * Get usage reports for a device
- * Results are aggregated by UTC hour and can be filtered by user's timezone
+ * Results are aggregated by UTC hour and can be filtered by time period
+ * Query parameters:
+ *   - limit: number of reports to return (default: 100)
+ *   - period: 'hours' | 'days' | 'months' (optional)
+ *   - count: number of periods to look back (optional, required if period is provided)
  */
 router.get(
   '/:deviceId/usage',
@@ -161,17 +164,34 @@ router.get(
         ? parseInt(req.query.limit as string, 10)
         : 100;
 
-      // Get user's timezone for filtering
-      // const user = await db.query.users.findFirst({
-      //   where: eq(users.id, req.userId),
-      // });
+      const period = req.query.period as 'hours' | 'days' | 'months' | undefined;
+      const count = req.query.count
+        ? parseInt(req.query.count as string, 10)
+        : undefined;
 
-      // const timezone = user?.timezone ?? 'UTC';
+      // Validate period and count
+      if (period && (!count || count <= 0)) {
+        return res.status(400).json({
+          success: false,
+          message: 'count is required and must be greater than 0 when period is provided',
+        });
+      }
+
+      if (period && !['hours', 'days', 'months'].includes(period)) {
+        return res.status(400).json({
+          success: false,
+          message: 'period must be one of: hours, days, months',
+        });
+      }
+
+      const timezone = await userService.findUserTimezone(req.userId);
 
       const reports = await deviceService.getDeviceReports(
         deviceId,
-        limit
-        // timezone
+        timezone,
+        limit,
+        period,
+        count
       );
 
       return res.json({
