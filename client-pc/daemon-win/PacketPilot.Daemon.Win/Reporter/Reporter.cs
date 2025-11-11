@@ -112,14 +112,10 @@ namespace PacketPilot.Daemon.Win.Reporter
 
             var usageApps = new Dictionary<string, AppUsage>();
 
-            // Aggregate process usage by app (process path or name)
-            // ProcessNetworkMonitor tracks cumulative usage since monitor started
-            // We'll use these values directly for reporting (server handles hourly grouping)
-            foreach (var process in processUsage.Values)
+            foreach (var kvp in processUsage)
             {
-                var identifier = !string.IsNullOrEmpty(process.ProcessPath)
-                    ? process.ProcessPath
-                    : process.ProcessName;
+                var identifier = kvp.Key;
+                var process = kvp.Value;
 
                 usageApps[identifier] = new AppUsage
                 {

@@ -33,7 +33,7 @@ namespace PacketPilot.Daemon.Win.Monitor
         private readonly Config.MonitorConfig _config;
         private TraceEventSession? _etwSession;
         private Task? _processingTask;
-        private readonly ConcurrentDictionary<int, ProcessNetworkUsage> _processUsage = new();
+        private readonly ConcurrentDictionary<string, ProcessNetworkUsage> _processUsage = new();
         private readonly ReaderWriterLockSlim _processUsageLock = new();
         private CancellationTokenSource? _cancellationTokenSource;
         private readonly object _sessionLock = new object();
@@ -41,18 +41,11 @@ namespace PacketPilot.Daemon.Win.Monitor
 
         // Process info cache to avoid repeated Process.GetProcessById calls
         private readonly ConcurrentDictionary<int, ProcessInfo> _processInfoCache = new();
-        private readonly System.Timers.Timer? _processNameRefreshTimer;
 
         public ProcessNetworkMonitor(Logger.Logger logger, Config.MonitorConfig config)
         {
             _logger = logger;
             _config = config;
-
-            // Refresh process name cache every 30 seconds to handle process name changes
-            _processNameRefreshTimer = new System.Timers.Timer(30000);
-            _processNameRefreshTimer.Elapsed += (sender, e) => RefreshProcessNames();
-            _processNameRefreshTimer.AutoReset = true;
-            _processNameRefreshTimer.Start();
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -118,7 +111,6 @@ namespace PacketPilot.Daemon.Win.Monitor
         public void Stop()
         {
             _cancellationTokenSource?.Cancel();
-            _processNameRefreshTimer?.Stop();
 
             lock (_sessionLock)
             {
@@ -306,12 +298,14 @@ namespace PacketPilot.Daemon.Win.Monitor
             _processUsageLock.EnterUpgradeableReadLock();
             try
             {
-                if (!_processUsage.TryGetValue(processId, out var usage))
+                var processInfo = GetProcessInfo(processId);
+                var identifier = !string.IsNullOrEmpty(processInfo.Path) ? processInfo.Path : processInfo.Name;
+
+                if (!_processUsage.TryGetValue(identifier, out var usage))
                 {
                     _processUsageLock.EnterWriteLock();
                     try
                     {
-                        var processInfo = GetProcessInfo(processId);
                         usage = new ProcessNetworkUsage
                         {
                             ProcessId = processId,
@@ -322,7 +316,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                             TotalTxBytes = 0,
                             LastSeen = DateTime.Now
                         };
-                        _processUsage[processId] = usage;
+                        _processUsage[identifier] = usage;
                     }
                     finally
                     {
@@ -330,6 +324,11 @@ namespace PacketPilot.Daemon.Win.Monitor
                     }
                 }
 
+                // Update latest pid and metadata; keep cumulative totals
+                usage.ProcessId = processId;
+                usage.ProcessName = processInfo.Name;
+                usage.ProcessPath = processInfo.Path;
+                usage.ProcessIconBase64 = processInfo.IconBase64;
                 usage.TotalRxBytes += rxBytes;
                 usage.TotalTxBytes += txBytes;
                 usage.LastSeen = DateTime.Now;
@@ -437,50 +436,6 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private void RefreshProcessNames()
-        {
-            var pidsToRefresh = new List<int>();
-
-            _processUsageLock.EnterReadLock();
-            try
-            {
-                pidsToRefresh.AddRange(_processUsage.Keys);
-            }
-            finally
-            {
-                _processUsageLock.ExitReadLock();
-            }
-
-            foreach (var pid in pidsToRefresh)
-            {
-                try
-                {
-                    if (_processUsage.TryGetValue(pid, out var usage))
-                    {
-                        var processInfo = GetProcessInfo(pid);
-                        if (usage.ProcessName != processInfo.Name || usage.ProcessPath != processInfo.Path || usage.ProcessIconBase64 != processInfo.IconBase64)
-                        {
-                            usage.ProcessName = processInfo.Name;
-                            usage.ProcessPath = processInfo.Path;
-                            usage.ProcessIconBase64 = processInfo.IconBase64;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.Debug("Error refreshing process names", "error", ex.Message);
-                }
-            }
-
-            // Clean up old process info cache entries
-            var validPids = new HashSet<int>(pidsToRefresh);
-            var cacheKeysToRemove = _processInfoCache.Keys.Where(k => !validPids.Contains(k)).ToList();
-            foreach (var key in cacheKeysToRemove)
-            {
-                _processInfoCache.TryRemove(key, out _);
-            }
-        }
-
         private async Task LogProcessUsagePeriodically(CancellationToken cancellationToken)
         {
             try
@@ -513,40 +468,6 @@ namespace PacketPilot.Daemon.Win.Monitor
             _processUsageLock.EnterReadLock();
             try
             {
-                // Clean up processes that haven't been seen in the last 5 minutes
-                var cutoffTime = DateTime.Now.Subtract(TimeSpan.FromMinutes(5));
-                var staleProcesses = _processUsage
-                    .Where(kvp => kvp.Value.LastSeen < cutoffTime)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                if (staleProcesses.Count > 0)
-                {
-                    _processUsageLock.ExitReadLock();
-                    _processUsageLock.EnterWriteLock();
-                    try
-                    {
-                        foreach (var pid in staleProcesses)
-                        {
-                            if (_processUsage.TryRemove(pid, out var usage))
-                            {
-                                _logger.Debug("Removed stale process from monitoring",
-                                    "pid", pid,
-                                    "process_name", usage.ProcessName,
-                                    "process_path", usage.ProcessPath,
-                                    "process_icon_base64", usage.ProcessIconBase64,
-                                    "total_rx_mb", (double)usage.TotalRxBytes / (1024 * 1024),
-                                    "total_tx_mb", (double)usage.TotalTxBytes / (1024 * 1024));
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        _processUsageLock.ExitWriteLock();
-                        _processUsageLock.EnterReadLock();
-                    }
-                }
-
                 // Calculate total usage across all processes
                 long totalRxBytes = 0;
                 long totalTxBytes = 0;
@@ -589,7 +510,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        public Dictionary<int, ProcessNetworkUsage> GetProcessUsage()
+        public Dictionary<string, ProcessNetworkUsage> GetProcessUsage()
         {
             _processUsageLock.EnterReadLock();
             try
@@ -617,7 +538,6 @@ namespace PacketPilot.Daemon.Win.Monitor
                 return;
 
             Stop();
-            _processNameRefreshTimer?.Dispose();
             _processUsageLock?.Dispose();
             _cancellationTokenSource?.Dispose();
             _disposed = true;
