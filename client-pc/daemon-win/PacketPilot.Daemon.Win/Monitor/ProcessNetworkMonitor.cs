@@ -15,6 +15,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using PacketPilot.Daemon.Win.Models;
 using PacketPilot.Daemon.Win.Utils;
+using System.Text.Json;
 
 namespace PacketPilot.Daemon.Win.Monitor
 {
@@ -54,6 +55,8 @@ namespace PacketPilot.Daemon.Win.Monitor
 
             try
             {
+                LoadUsageSnapshot();
+
                 lock (_sessionLock)
                 {
                     if (_etwSession != null)
@@ -98,6 +101,8 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                 // Start periodic logging of process usage
                 _ = Task.Run(() => LogProcessUsagePeriodically(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+                // Start periodic cache clearing (hourly)
+                _ = Task.Run(() => ClearCachesPeriodically(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
                 await Task.CompletedTask;
             }
@@ -463,11 +468,64 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
+        private async Task ClearCachesPeriodically(CancellationToken cancellationToken)
+        {
+            try
+            {
+                // Clear caches every utc hour
+                var now = DateTime.UtcNow;
+                var nextHour = new DateTime(now.Year, now.Month, now.Day, now.Hour, 0, 0, DateTimeKind.Utc).AddHours(1);
+                var initialDelay = nextHour - now;
+
+                if (initialDelay > TimeSpan.Zero)
+                {
+                    await Task.Delay(initialDelay, cancellationToken);
+                }
+
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                        ClearCaches();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error("Error in periodic cache clearing", "error", ex.Message);
+                    }
+
+                    await Task.Delay(TimeSpan.FromHours(1), cancellationToken);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.Info("Periodic cache clearing stopped");
+            }
+        }
+
+        private void ClearCaches()
+        {
+            _processUsageLock.EnterWriteLock();
+            try
+            {
+                _processUsage.Clear();
+            }
+            finally
+            {
+                _processUsageLock.ExitWriteLock();
+            }
+
+            _processInfoCache.Clear();
+
+            _logger.Debug("Cleared process usage and process info caches");
+        }
+
         private void LogProcessUsage()
         {
             _processUsageLock.EnterReadLock();
             try
             {
+                SaveUsageSnapshot();
+
                 // Calculate total usage across all processes
                 long totalRxBytes = 0;
                 long totalTxBytes = 0;
@@ -498,7 +556,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                     foreach (var process in activeProcesses)
                     {
-                        _logger.Info("Process network usage",
+                        _logger.Debug("Process network usage",
                             "process_name", process.ProcessName,
                             "total_mb", (double)(process.TotalRxBytes + process.TotalTxBytes) / (1024 * 1024));
                     }
@@ -530,6 +588,132 @@ namespace PacketPilot.Daemon.Win.Monitor
             {
                 _processUsageLock.ExitReadLock();
             }
+        }
+
+        private string GetAppDataDirectory()
+        {
+            var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var dir = Path.Combine(baseDir, "PacketPilot");
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            return dir;
+        }
+
+        private string GetPersistFilePath()
+        {
+            return Path.Combine(GetAppDataDirectory(), "process_usage.json");
+        }
+
+        private static string GetCurrentUtcKey()
+        {
+            var now = DateTime.UtcNow;
+            return $"{now:yyyy-MM-ddTHH}Z";
+        }
+
+        private void SaveUsageSnapshot()
+        {
+            try
+            {
+                // Take a consistent snapshot under read lock
+                Dictionary<string, ProcessNetworkUsage> items;
+                items = _processUsage.ToDictionary(kvp => kvp.Key, kvp => new ProcessNetworkUsage
+                {
+                    ProcessId = kvp.Value.ProcessId,
+                    ProcessName = kvp.Value.ProcessName,
+                    ProcessPath = kvp.Value.ProcessPath,
+                    ProcessIconBase64 = kvp.Value.ProcessIconBase64,
+                    TotalRxBytes = kvp.Value.TotalRxBytes,
+                    TotalTxBytes = kvp.Value.TotalTxBytes,
+                    LastSeen = kvp.Value.LastSeen
+                });
+
+                var snapshot = new PersistedUsage
+                {
+                    UtcKey = GetCurrentUtcKey(),
+                    Items = items
+                };
+
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                var json = JsonSerializer.Serialize(snapshot, options);
+                File.WriteAllText(GetPersistFilePath(), json);
+
+                _logger.Info("Saved persisted usage snapshot", "path", GetPersistFilePath());
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to save persisted usage snapshot", "error", ex.Message);
+            }
+        }
+
+        private void LoadUsageSnapshot()
+        {
+            try
+            {
+                var path = GetPersistFilePath();
+                if (!File.Exists(path))
+                {
+                    _logger.Info("No persisted usage snapshot found", "Cause:", "file not found");
+                    return;
+                }
+
+                var json = File.ReadAllText(path);
+                var data = JsonSerializer.Deserialize<PersistedUsage>(json);
+                if (data == null || string.IsNullOrEmpty(data.UtcKey))
+                {
+                    _logger.Info("No persisted usage snapshot found", "Cause:", "data is null or utc key is empty");
+                    return;
+                }
+
+                if (!string.Equals(data.UtcKey, GetCurrentUtcKey(), StringComparison.Ordinal))
+                {
+                    _logger.Info("Different utc window; ignore", "Cause:", "different utc key");
+                    return;
+                }
+
+                if (data.Items == null || data.Items.Count == 0)
+                {
+                    _logger.Info("No items in persisted usage snapshot", "Cause:", "no items in data");
+                    return;
+                }
+
+                _logger.Info("Loading persisted usage snapshot", "path", path);
+                _processUsageLock.EnterWriteLock();
+                try
+                {
+                    foreach (var kvp in data.Items)
+                    {
+                        var identifier = kvp.Key;
+                        var item = kvp.Value;
+
+                        _processUsage[identifier] = new ProcessNetworkUsage
+                        {
+                            ProcessId = item.ProcessId,
+                            ProcessName = item.ProcessName,
+                            ProcessPath = item.ProcessPath,
+                            ProcessIconBase64 = item.ProcessIconBase64,
+                            TotalRxBytes = item.TotalRxBytes,
+                            TotalTxBytes = item.TotalTxBytes,
+                            LastSeen = DateTime.Now
+                        };
+                    }
+                }
+                finally
+                {
+                    _processUsageLock.ExitWriteLock();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error("Failed to load persisted usage snapshot", "error", ex.Message);
+            }
+        }
+
+        private class PersistedUsage
+        {
+            public string UtcKey { get; set; } = "";
+            public Dictionary<string, ProcessNetworkUsage> Items { get; set; } = new Dictionary<string, ProcessNetworkUsage>();
         }
 
         public void Dispose()
