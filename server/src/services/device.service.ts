@@ -308,27 +308,18 @@ export async function createUsageReport(data: {
 
   for (const appData of data.apps) {
     // Find the app (it should already be registered, but find it anyway)
-    // let app = await db.query.apps.findFirst({
-    //   where: and(
-    //     eq(apps.deviceId, data.deviceId),
-    //     eq(apps.identifier, appData.identifier)
-    //   ),
-    // });
+    const app = await db.query.apps.findFirst({
+      where: and(
+        eq(apps.deviceId, data.deviceId),
+        eq(apps.identifier, appData.identifier)
+      ),
+    });
 
-    // if (!app) {
-    // App not found - try to create it as a fallback
-    // This can happen if app registration failed or was skipped
-    // logger.warn(
-    //   `App not found for device ${data.deviceId}, identifier: ${appData.identifier}, creating as fallback`
-    // );
-    const app = await findOrCreateApp(
-      data.deviceId,
-      appData.identifier,
-      undefined,
-      undefined
-    );
-
-    // }
+    if (!app) {
+      throw new Error(
+        `App not found for device ${data.deviceId}, identifier: ${appData.identifier}`
+      );
+    }
 
     // Check if report exists for this device, app, and UTC hour
     const existingReport = await db.query.reports.findFirst({

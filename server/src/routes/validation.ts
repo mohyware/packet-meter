@@ -50,6 +50,6 @@ export const registerAppsSchema = z.object({
 
 export const dailyUsageReportSchema = z.object({
   Timestamp: z.string(),
-  Date: z.string(), // YYYY-MM-DD
+  Date: z.string(),
   Apps: z.array(appUsageSchema),
 });

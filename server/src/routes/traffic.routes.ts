@@ -137,7 +137,6 @@ router.post(
 
       // Create reports in database (one per app, grouped by UTC hour)
       // The timestamp will be rounded to UTC hour for storage
-      // Note: Apps should be registered first, but we still call findOrCreateApp as a fallback
       await deviceService.createUsageReport({
         deviceId: device.id,
         timestamp: timestampDate,
