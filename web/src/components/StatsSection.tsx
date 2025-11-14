@@ -12,16 +12,29 @@ export default function StatsSection() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {[1, 2, 3, 4].map((i) => (
-          <div
-            key={i}
-            className="bg-white rounded-lg p-6 shadow-sm animate-pulse"
-          >
-            <div className="h-4 bg-gray-200 rounded w-24 mb-4"></div>
-            <div className="h-8 bg-gray-200 rounded w-32"></div>
-          </div>
-        ))}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">
+          Overview Statistics
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-lg p-6 shadow-sm border-l-4 border-gray-300 animate-pulse"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="h-3.5 bg-gray-200 rounded w-24 mb-6"></div>
+                  <div className="h-8 bg-gray-200 rounded w-32"></div>
+                  {i === 4 && (
+                    <div className="h-4 bg-gray-200 rounded w-20 mt-1"></div>
+                  )}
+                </div>
+                <div className="bg-gray-200 rounded-full w-14 h-14 flex-shrink-0"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

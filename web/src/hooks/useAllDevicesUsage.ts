@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useDevices } from './useDevices';
 import { devicesApi, DeviceUsageReport } from '../api/devices';
+import { useTimePeriodStore } from '../stores/timePeriodStore';
 
 interface DeviceWithUsage {
     deviceId: string;
@@ -22,14 +23,12 @@ interface AllDevicesStats {
     devicesSortedByUsage: DeviceWithUsage[];
 }
 
-export const useAllDevicesUsage = (
-    period?: 'hours' | 'days' | 'months',
-    count?: number
-) => {
+export const useAllDevicesUsage = () => {
     const { devices } = useDevices();
+    const { selectedPeriod, selectedCount } = useTimePeriodStore();
 
     const { data, isLoading, error } = useQuery({
-        queryKey: ['allDevicesUsage', devices.map(d => d.id), period, count],
+        queryKey: ['allDevicesUsage', devices.map(d => d.id), selectedPeriod, selectedCount],
         queryFn: async () => {
             // Fetch usage for all active devices
             const activeDevices = devices.filter(d => d.status === 'active');
@@ -38,8 +37,8 @@ export const useAllDevicesUsage = (
                     const response = await devicesApi.getDeviceUsage(
                         device.id,
                         1000,
-                        period,
-                        count
+                        selectedPeriod ?? undefined,
+                        selectedPeriod ? selectedCount : undefined
                     );
                     return {
                         deviceId: device.id,

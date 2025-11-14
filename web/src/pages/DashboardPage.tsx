@@ -3,6 +3,7 @@ import { useDevices } from '../hooks/useDevices';
 import { useAllDevicesUsage } from '../hooks/useAllDevicesUsage';
 import { useNavigate } from 'react-router-dom';
 import StatsSection from '../components/StatsSection';
+import { TimePeriodSelector } from '../components/TimePeriodSelector';
 
 export default function DashboardPage() {
   const {
@@ -34,7 +35,7 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState<'name' | 'usage' | 'status'>('usage');
   const previousDevicesRef = useRef<typeof devices>([]);
   const navigate = useNavigate();
-  const { stats: usageStats } = useAllDevicesUsage();
+  const { stats: usageStats, isLoading: isLoadingUsage } = useAllDevicesUsage();
 
   // Detect when devices change from pending to pendingApproval
   useEffect(() => {
@@ -209,6 +210,8 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h2 className="text-3xl font-semibold text-gray-800">Your Devices</h2>
         <div className="flex items-center gap-4">
+          {/* Time Period Selector */}
+          <TimePeriodSelector />
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-600 font-medium">
               Sort by:
@@ -390,34 +393,77 @@ export default function DashboardPage() {
                   className="flex flex-col gap-2"
                   onClick={() => navigate(`/devices/${device.id}`)}
                 >
-                  {deviceUsage && deviceUsage.totalUsageMB > 0 && (
-                    <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-gray-600 uppercase tracking-wide">
-                          Total Usage
-                        </span>
-                        <span className="text-lg font-bold text-blue-600">
-                          {formatMB(deviceUsage.totalUsageMB)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-600">
-                        <span>RX: {formatMB(deviceUsage.totalRxMB)}</span>
-                        <span>TX: {formatMB(deviceUsage.totalTxMB)}</span>
-                      </div>
-                      {deviceUsage.reportCount > 0 && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {deviceUsage.reportCount} report
-                          {deviceUsage.reportCount !== 1 ? 's' : ''}
+                  {isLoadingUsage ||
+                  (deviceUsage && deviceUsage.totalUsageMB > 0) ? (
+                    isLoadingUsage ? (
+                      <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200 animate-pulse h-27">
+                        <div className="flex justify-between items-center mb-1">
+                          <div className="h-3 bg-gray-300 rounded w-20"></div>
+                          <div className="h-5 bg-gray-300 rounded w-16"></div>
                         </div>
-                      )}
-                    </div>
-                  )}
+                        <div className="mb-2">
+                          <div className="flex justify-between items-center mb-4">
+                            <div className="h-3 bg-gray-300 rounded w-20"></div>
+                          </div>
+                          <div className="w-full bg-gray-300 rounded-full h-2">
+                            <div className="bg-gray-400 h-2 rounded-full w-1/3"></div>
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-300 rounded w-16"></div>
+                          <div className="h-3 bg-gray-300 rounded w-16"></div>
+                        </div>
+                      </div>
+                    ) : deviceUsage && deviceUsage.totalUsageMB > 0 ? (
+                      <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs text-gray-600 uppercase tracking-wide">
+                            Total Usage
+                          </span>
+                          <span className="text-lg font-bold text-blue-600">
+                            {formatMB(deviceUsage.totalUsageMB)}
+                          </span>
+                        </div>
+                        {usageStats && usageStats.totalUsageMB > 0 && (
+                          <div className="mb-2">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-xs text-gray-600">
+                                {(
+                                  (deviceUsage.totalUsageMB /
+                                    usageStats.totalUsageMB) *
+                                  100
+                                ).toFixed(1)}
+                                % of total
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all"
+                                style={{
+                                  width: `${(deviceUsage.totalUsageMB / usageStats.totalUsageMB) * 100}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        <div className="text-xs flex justify-between">
+                          <div className="text-blue-600">
+                            ↓ {formatMB(deviceUsage.totalRxMB)}
+                          </div>
+                          <div className="text-green-600">
+                            ↑ {formatMB(deviceUsage.totalTxMB)}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null
+                  ) : null}
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Created:</span>
+                    <span className="text-gray-600">Added on:</span>
                     <span className="text-gray-800 font-medium">
                       {new Date(device.createdAt).toLocaleDateString()}
                     </span>
                   </div>
+                  {/* // TODO: check if this is needed */}
                   {device.lastHealthCheck && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Last seen:</span>

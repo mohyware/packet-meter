@@ -1,20 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDeviceUsage, useDevices } from '../hooks/useDevices';
-import { TimePeriodSelector, TimePeriod } from '../components/TimePeriodSelector';
-import { DownloadUploadChart } from '../components/UsageChart';
+import { useDevices } from '../hooks/useDevices';
+import { TimePeriodSelector } from '../components/TimePeriodSelector';
+import {
+  useDeviceReports,
+  useDeviceReportsStore,
+} from '../stores/deviceReportsStore';
+import { UsageChart } from '../components/UsageChart';
 
 export default function DeviceDetailPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod | null>(null);
-  const [selectedCount, setSelectedCount] = useState(1);
-  const { reports, isLoading: isLoadingUsage } = useDeviceUsage(
-    deviceId ?? '',
-    1000,
-    selectedPeriod ?? undefined,
-    selectedPeriod ? selectedCount : undefined
-  );
+  const { isLoading: isLoadingUsage } = useDeviceReports(deviceId ?? null);
+  const { reports, allAppsReport, setSelectedReport } = useDeviceReportsStore();
+
+  // Reset to "all-reports" when navigating to device detail page
+  useEffect(() => {
+    if (allAppsReport) {
+      setSelectedReport(allAppsReport);
+    }
+  }, [deviceId, allAppsReport, setSelectedReport]);
   const {
     devices,
     isLoading: isLoadingDevices,
@@ -29,10 +34,49 @@ export default function DeviceDetailPage() {
 
   const device = devices.find((d) => d.id === deviceId);
 
-  if (isLoadingDevices || isLoadingUsage) {
+  if (isLoadingDevices) {
     return (
-      <div className="text-center py-12 text-gray-600">
-        <div>Loading device...</div>
+      <div className="w-full">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
+          </svg>
+          <span className="text-sm font-medium">Back to Dashboard</span>
+        </button>
+
+        {/* Device Header Skeleton */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex-1">
+            <div className="h-9 bg-gray-200 rounded w-64 mb-2 animate-pulse"></div>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="h-6 bg-gray-200 rounded-full w-20 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-32 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-36 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded w-28 animate-pulse"></div>
+            <div className="h-10 bg-gray-200 rounded w-28 animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Chart Skeleton */}
+        <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-pulse">
+          <div className="h-96 bg-gray-200 rounded"></div>
+        </div>
       </div>
     );
   }
@@ -73,6 +117,25 @@ export default function DeviceDetailPage() {
 
   return (
     <div className="w-full">
+      <button
+        onClick={() => navigate('/dashboard')}
+        className="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span className="text-sm font-medium">Back to Dashboard</span>
+      </button>
+
       <div className="flex justify-between items-start mb-8">
         <div className="flex-1">
           {editingName ? (
@@ -107,12 +170,13 @@ export default function DeviceDetailPage() {
           )}
           <div className="flex items-center gap-4 mt-2">
             <span
-              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${device.status === 'active'
-                ? 'bg-green-100 text-green-800'
-                : device.status === 'pendingApproval'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-gray-100 text-gray-800'
-                }`}
+              className={`px-3 py-1 rounded-full text-xs font-medium uppercase ${
+                device.status === 'active'
+                  ? 'bg-green-100 text-green-800'
+                  : device.status === 'pendingApproval'
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : 'bg-gray-100 text-gray-800'
+              }`}
             >
               {device.status === 'active'
                 ? 'Active'
@@ -132,6 +196,7 @@ export default function DeviceDetailPage() {
         </div>
         {!editingName && (
           <div className="flex gap-2">
+            <TimePeriodSelector />
             <button
               onClick={startEdit}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
@@ -148,14 +213,30 @@ export default function DeviceDetailPage() {
         )}
       </div>
 
-      <TimePeriodSelector
-        selectedPeriod={selectedPeriod}
-        selectedCount={selectedCount}
-        onPeriodChange={setSelectedPeriod}
-        onCountChange={setSelectedCount}
-      />
-
-      {reports.length === 0 ? (
+      {isLoadingUsage ? (
+        <div className="flex flex-col gap-6">
+          {/* Chart Skeleton */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-pulse">
+            <div className="h-96 bg-gray-200 rounded"></div>
+          </div>
+          {/* App Usage Bars Skeleton */}
+          <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200 animate-pulse">
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <div className="h-5 bg-gray-200 rounded w-40"></div>
+                    <div className="h-5 bg-gray-200 rounded w-20"></div>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="bg-gray-300 h-3 rounded-full w-1/3"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : reports.length === 0 ? (
         <div className="text-center py-12 text-gray-600">
           <p>
             No usage reports yet. Reports will appear here once the device
@@ -164,10 +245,7 @@ export default function DeviceDetailPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <DownloadUploadChart
-            reports={reports}
-            period={selectedPeriod ?? undefined}
-          />
+          <UsageChart />
         </div>
       )}
 
