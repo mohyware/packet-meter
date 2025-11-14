@@ -110,6 +110,25 @@ export async function updateDeviceHealthCheck(deviceId: string) {
 }
 
 /**
+ * Update device type
+ */
+export async function updateDeviceType(
+  deviceId: string,
+  deviceType: 'windows' | 'android' | 'linux' | 'unknown'
+) {
+  const [updatedDevice] = await db
+    .update(devices)
+    .set({
+      deviceType,
+      updatedAt: new Date(),
+    })
+    .where(eq(devices.id, deviceId))
+    .returning();
+
+  return updatedDevice;
+}
+
+/**
  * Get device with usage statistics
  */
 export async function getDeviceWithUsage(deviceId: string) {
@@ -257,16 +276,16 @@ export async function getDeviceReports(
   // Filter by time period if specified
   const filteredReports = startDate
     ? allReports.filter((report) => {
-      if (period === 'hours' && endDate) {
-        // For hours, compare timestamps directly but ensure we're working with hour boundaries
-        const reportTime = report.timestamp.getTime();
-        const startTime = startDate.getTime();
-        const endTime = endDate.getTime();
-        return reportTime >= startTime && reportTime < endTime;
-      }
-      // For days and months, use simple >= comparison
-      return report.timestamp.getTime() >= startDate.getTime();
-    })
+        if (period === 'hours' && endDate) {
+          // For hours, compare timestamps directly but ensure we're working with hour boundaries
+          const reportTime = report.timestamp.getTime();
+          const startTime = startDate.getTime();
+          const endTime = endDate.getTime();
+          return reportTime >= startTime && reportTime < endTime;
+        }
+        // For days and months, use simple >= comparison
+        return report.timestamp.getTime() >= startDate.getTime();
+      })
     : allReports;
 
   // Group by UTC hour and aggregate

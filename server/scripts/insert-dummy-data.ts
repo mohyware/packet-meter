@@ -1,24 +1,30 @@
-import { db, users, devices, reports } from '../src/db/index.js';
-import { eq } from 'drizzle-orm';
+import { db, users, devices, reports, apps } from '../src/db/index.js';
+import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 
 interface DummyDataOptions {
     userId?: string;
-    deviceId?: string;
+    deviceIds?: string[];
     months?: number;
-    interfaces?: string[];
+    appIdentifiers?: string[];
 }
 
 /**
  * Creates dummy data for testing purposes
- * Generates 2 months of hourly traffic reports
+ * Generates 2 months of hourly traffic reports for 2 devices with multiple apps
  */
 async function insertDummyData(options: DummyDataOptions = {}) {
     const {
         userId: providedUserId,
-        deviceId: providedDeviceId,
+        deviceIds: providedDeviceIds,
         months = 2,
-        interfaces = ['eth0', 'wlan0'],
+        appIdentifiers = [
+            'com.chrome.browser',
+            'com.whatsapp',
+            'com.spotify.music',
+            'C:\\Program Files\\Microsoft Edge\\msedge.exe',
+            'C:\\Program Files\\Firefox\\firefox.exe',
+        ],
     } = options;
 
     console.log('Starting dummy data insertion...');
@@ -46,6 +52,10 @@ async function insertDummyData(options: DummyDataOptions = {}) {
                         email: process.env.TEST_USER_EMAIL!,
                         passwordHash,
                         timezone: 'America/New_York',
+                        subscriptionPlan: 'premier',
+                        subscriptionStatus: 'active',
+                        renewalPeriod: 'monthly',
+                        subscriptionStartDate: new Date(),
                     })
                     .returning();
                 userId = newUser.id;
@@ -53,35 +63,93 @@ async function insertDummyData(options: DummyDataOptions = {}) {
             }
         }
 
-        // Get or create device
-        let deviceId = providedDeviceId;
-        if (!deviceId) {
-            console.log('Creating test device...');
-            const existingDevice = await db
+        // Get or create devices (create 2 devices)
+        let deviceIds = providedDeviceIds;
+        if (!deviceIds || deviceIds.length === 0) {
+            console.log('Creating test devices...');
+            const existingDevices = await db
                 .select()
                 .from(devices)
-                .where(eq(devices.userId, userId))
-                .limit(1);
+                .where(eq(devices.userId, userId));
 
-            if (existingDevice.length > 0) {
-                deviceId = existingDevice[0].id;
-                console.log(`Using existing device: ${deviceId}`);
+            if (existingDevices.length >= 2) {
+                deviceIds = existingDevices.slice(0, 2).map((d) => d.id);
+                console.log(`Using existing devices: ${deviceIds.join(', ')}`);
             } else {
-                // Generate a dummy device token hash
-                const deviceTokenHash = await bcrypt.hash('dummy-device-token', 10);
-                const [newDevice] = await db
-                    .insert(devices)
-                    .values({
-                        userId,
-                        name: 'Test Device',
-                        deviceTokenHash,
-                        isActivated: true,
-                        lastHealthCheck: new Date(),
-                    })
-                    .returning();
-                deviceId = newDevice.id;
-                console.log(`Created new device: ${deviceId}`);
+                deviceIds = [];
+                const deviceNames = ['Test Device 1', 'Test Device 2'];
+                const deviceTypes = ['windows', 'android'];
+
+                for (let i = 0; i < 2; i++) {
+                    // Check if device already exists
+                    const existingDevice = existingDevices.find(
+                        (d) => d.name === deviceNames[i]
+                    );
+
+                    if (existingDevice) {
+                        deviceIds.push(existingDevice.id);
+                        console.log(`Using existing device: ${deviceNames[i]} (${existingDevice.id})`);
+                    } else {
+                        // Generate a dummy device token hash
+                        const deviceTokenHash = await bcrypt.hash(
+                            `dummy-device-token-${i}`,
+                            10
+                        );
+                        const [newDevice] = await db
+                            .insert(devices)
+                            .values({
+                                userId,
+                                name: deviceNames[i],
+                                deviceTokenHash,
+                                deviceType: deviceTypes[i],
+                                isActivated: true,
+                                lastHealthCheck: new Date(),
+                            })
+                            .returning();
+                        deviceIds.push(newDevice.id);
+                        console.log(`Created new device: ${deviceNames[i]} (${newDevice.id})`);
+                    }
+                }
             }
+        }
+
+        // Create apps for each device
+        console.log('Creating apps for devices...');
+        const deviceAppMap = new Map<string, Map<string, string>>();
+
+        for (const deviceId of deviceIds) {
+            const appMap = new Map<string, string>();
+            deviceAppMap.set(deviceId, appMap);
+
+            for (const identifier of appIdentifiers) {
+                // Check if app already exists
+                const existingApp = await db.query.apps.findFirst({
+                    where: and(
+                        eq(apps.deviceId, deviceId),
+                        eq(apps.identifier, identifier)
+                    ),
+                });
+
+                if (existingApp) {
+                    appMap.set(identifier, existingApp.id);
+                } else {
+                    // Extract display name from identifier
+                    const displayName = identifier.includes('\\')
+                        ? identifier.split('\\').pop()?.replace('.exe', '') || identifier
+                        : identifier.split('.').slice(-2).join('.');
+
+                    const [newApp] = await db
+                        .insert(apps)
+                        .values({
+                            deviceId,
+                            identifier,
+                            displayName,
+                        })
+                        .returning();
+                    appMap.set(identifier, newApp.id);
+                }
+            }
+            console.log(`Created/found ${appMap.size} apps for device ${deviceId}`);
         }
 
         // Generate timestamps for the last N months (hourly data)
@@ -93,7 +161,7 @@ async function insertDummyData(options: DummyDataOptions = {}) {
         const hoursToGenerate =
             Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60));
         console.log(
-            `Generating ${hoursToGenerate} hours of data for ${interfaces.length} interfaces...`
+            `Generating ${hoursToGenerate} hours of data for ${deviceIds.length} devices with ${appIdentifiers.length} apps each...`
         );
 
         // Generate reports in batches
@@ -110,54 +178,58 @@ async function insertDummyData(options: DummyDataOptions = {}) {
                 timestamp.toISOString().slice(0, 13) + ':00:00.000Z'
             );
 
-            for (const interfaceName of interfaces) {
-                // Generate realistic network traffic data
-                // Vary traffic based on time of day (more during day, less at night)
-                const hourOfDay = utcTimestamp.getUTCHours();
-                const dayOfWeek = utcTimestamp.getUTCDay();
+            for (const deviceId of deviceIds) {
+                const appMap = deviceAppMap.get(deviceId)!;
 
-                // Base multiplier: more traffic during business hours (9 AM - 5 PM)
-                let trafficMultiplier = 1.0;
-                if (hourOfDay >= 9 && hourOfDay < 17) {
-                    trafficMultiplier = 2.5; // Peak hours
-                } else if (hourOfDay >= 7 && hourOfDay < 22) {
-                    trafficMultiplier = 1.5; // Regular hours
-                } else {
-                    trafficMultiplier = 0.3; // Off-peak hours
+                for (const [identifier, appId] of appMap) {
+                    // Generate realistic network traffic data
+                    // Vary traffic based on time of day (more during day, less at night)
+                    const hourOfDay = utcTimestamp.getUTCHours();
+                    const dayOfWeek = utcTimestamp.getUTCDay();
+
+                    // Base multiplier: more traffic during business hours (9 AM - 5 PM)
+                    let trafficMultiplier = 1.0;
+                    if (hourOfDay >= 9 && hourOfDay < 17) {
+                        trafficMultiplier = 2.5; // Peak hours
+                    } else if (hourOfDay >= 7 && hourOfDay < 22) {
+                        trafficMultiplier = 1.5; // Regular hours
+                    } else {
+                        trafficMultiplier = 0.3; // Off-peak hours
+                    }
+
+                    // Less traffic on weekends
+                    if (dayOfWeek === 0 || dayOfWeek === 6) {
+                        trafficMultiplier *= 0.6;
+                    }
+
+                    // Add some randomness
+                    const randomFactor = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+
+                    // Generate traffic in bytes (realistic values: 100MB to 10GB per hour)
+                    const baseRxBytes = 100 * 1024 * 1024; // 100 MB base
+                    const baseTxBytes = 50 * 1024 * 1024; // 50 MB base
+
+                    const totalRx =
+                        BigInt(
+                            Math.floor(
+                                baseRxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
+                            )
+                        ) + BigInt(Math.floor(Math.random() * 1000000000));
+                    const totalTx =
+                        BigInt(
+                            Math.floor(
+                                baseTxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
+                            )
+                        ) + BigInt(Math.floor(Math.random() * 500000000));
+
+                    allReports.push({
+                        deviceId,
+                        appId,
+                        timestamp: utcTimestamp,
+                        totalRx: totalRx.toString(),
+                        totalTx: totalTx.toString(),
+                    });
                 }
-
-                // Less traffic on weekends
-                if (dayOfWeek === 0 || dayOfWeek === 6) {
-                    trafficMultiplier *= 0.6;
-                }
-
-                // Add some randomness
-                const randomFactor = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
-
-                // Generate traffic in bytes (realistic values: 100MB to 10GB per hour)
-                const baseRxBytes = 100 * 1024 * 1024; // 100 MB base
-                const baseTxBytes = 50 * 1024 * 1024; // 50 MB base
-
-                const totalRx =
-                    BigInt(
-                        Math.floor(
-                            baseRxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
-                        )
-                    ) + BigInt(Math.floor(Math.random() * 1000000000));
-                const totalTx =
-                    BigInt(
-                        Math.floor(
-                            baseTxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
-                        )
-                    ) + BigInt(Math.floor(Math.random() * 500000000));
-
-                allReports.push({
-                    deviceId,
-                    interfaceName,
-                    timestamp: utcTimestamp,
-                    totalRx: totalRx.toString(),
-                    totalTx: totalTx.toString(),
-                });
             }
         }
 
@@ -179,10 +251,10 @@ async function insertDummyData(options: DummyDataOptions = {}) {
 
         console.log('✅ Dummy data insertion completed!');
         console.log(`   - User ID: ${userId}`);
-        console.log(`   - Device ID: ${deviceId}`);
+        console.log(`   - Devices: ${deviceIds.length} (${deviceIds.join(', ')})`);
+        console.log(`   - Apps per device: ${appIdentifiers.length}`);
         console.log(`   - Reports inserted: ${allReports.length}`);
         console.log(`   - Time range: ${startDate.toISOString()} to ${now.toISOString()}`);
-        console.log(`   - Interfaces: ${interfaces.join(', ')}`);
     } catch (error) {
         console.error('Error inserting dummy data:', error);
         throw error;

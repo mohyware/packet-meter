@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import * as deviceService from '../services/device.service';
 import { requireDeviceAuth } from '../middleware/auth';
 import logger from '../utils/logger';
+import { extractDeviceTypeFromUserAgent } from '../utils/utils';
 
 const router = Router();
 
@@ -33,6 +34,20 @@ router.post(
 
       // Update last health check
       await deviceService.updateDeviceHealthCheck(device.id);
+
+      // Update device type if unknown
+      if (device.deviceType === 'unknown') {
+        const userAgent = req.header('User-Agent');
+        if (!userAgent) {
+          return res.status(400).json({
+            success: false,
+            message: 'user agent not provided',
+          });
+        }
+        const extractedDeviceType = extractDeviceTypeFromUserAgent(userAgent);
+        await deviceService.updateDeviceType(device.id, extractedDeviceType);
+        logger.info(`Device type updated to ${extractedDeviceType}`);
+      }
 
       return res.json({
         success: true,

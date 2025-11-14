@@ -3,6 +3,7 @@ import * as deviceService from '../services/device.service';
 import { requireDeviceAuth } from '../middleware/auth';
 import { dailyUsageReportSchema, registerAppsSchema } from './validation';
 import logger from '../utils/logger';
+import { extractDeviceTypeFromUserAgent } from '../utils/utils';
 
 const router = Router();
 
@@ -47,6 +48,22 @@ router.post('/apps', requireDeviceAuth, async (req: Request, res: Response) => {
         message: 'device_not_activated',
         error:
           'Device must be approved and activated before it can register apps. Please wait for user approval.',
+      });
+    }
+
+    // Check that user agent matches device type
+    const userAgent = req.header('User-Agent');
+    if (!userAgent) {
+      return res.status(400).json({
+        success: false,
+        message: 'user agent not provided',
+      });
+    }
+    const extractedDeviceType = extractDeviceTypeFromUserAgent(userAgent);
+    if (extractedDeviceType !== device.deviceType) {
+      return res.status(403).json({
+        success: false,
+        message: 'user agent does not match device type',
       });
     }
 
@@ -127,6 +144,22 @@ router.post(
           message: 'device_not_activated',
           error:
             'Device must be approved and activated before it can send usage reports. Please wait for user approval.',
+        });
+      }
+
+      // Check that user agent matches device type
+      const userAgent = req.header('User-Agent');
+      if (!userAgent) {
+        return res.status(400).json({
+          success: false,
+          message: 'user agent not provided',
+        });
+      }
+      const extractedDeviceType = extractDeviceTypeFromUserAgent(userAgent);
+      if (extractedDeviceType !== device.deviceType) {
+        return res.status(403).json({
+          success: false,
+          message: 'user agent does not match device type',
         });
       }
 

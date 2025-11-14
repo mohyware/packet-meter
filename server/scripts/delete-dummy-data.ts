@@ -1,9 +1,9 @@
-import { db, users, devices, reports } from '../src/db/index.js';
+import { db, users, devices, reports, apps } from '../src/db/index.js';
 import { eq, inArray } from 'drizzle-orm';
 
 /**
  * Deletes all data for the test user created by the dummy data script
- * This includes the user, all their devices, and all reports (cascade delete)
+ * This includes the user, all their devices, apps, and all reports (cascade delete)
  */
 async function deleteDummyData() {
     console.log('Starting dummy data deletion...');
@@ -31,11 +31,19 @@ async function deleteDummyData() {
             where: eq(devices.userId, user.id),
         });
 
-        // Get all reports for these devices to count them
+        // Get all apps and reports for these devices to count them
         const deviceIds = userDevices.map((device) => device.id);
+        let appCount = 0;
         let reportCount = 0;
 
         if (deviceIds.length > 0) {
+            // Get all apps for all devices using inArray
+            const allDeviceApps = await db
+                .select()
+                .from(apps)
+                .where(inArray(apps.deviceId, deviceIds));
+            appCount = allDeviceApps.length;
+
             // Get all reports for all devices using inArray
             const allDeviceReports = await db
                 .select()
@@ -47,14 +55,16 @@ async function deleteDummyData() {
         console.log(`\nData to be deleted:`);
         console.log(`   - User: 1`);
         console.log(`   - Devices: ${userDevices.length}`);
+        console.log(`   - Apps: ${appCount}`);
         console.log(`   - Reports: ${reportCount}`);
 
-        // Delete the user (cascade will delete devices and reports)
+        // Delete the user (cascade will delete devices, apps, and reports)
         await db.delete(users).where(eq(users.id, user.id));
 
         console.log('\n✅ Dummy data deletion completed!');
         console.log(`   - Deleted user: ${user.username} (${user.email})`);
         console.log(`   - Deleted devices: ${userDevices.length} (cascaded)`);
+        console.log(`   - Deleted apps: ${appCount} (cascaded)`);
         console.log(`   - Deleted reports: ${reportCount} (cascaded)`);
     } catch (error) {
         console.error('Error deleting dummy data:', error);

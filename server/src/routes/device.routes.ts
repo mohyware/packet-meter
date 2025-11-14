@@ -164,7 +164,11 @@ router.get(
         ? parseInt(req.query.limit as string, 10)
         : 100;
 
-      const period = req.query.period as 'hours' | 'days' | 'months' | undefined;
+      const period = req.query.period as
+        | 'hours'
+        | 'days'
+        | 'months'
+        | undefined;
       const count = req.query.count
         ? parseInt(req.query.count as string, 10)
         : undefined;
@@ -173,7 +177,8 @@ router.get(
       if (period && (!count || count <= 0)) {
         return res.status(400).json({
           success: false,
-          message: 'count is required and must be greater than 0 when period is provided',
+          message:
+            'count is required and must be greater than 0 when period is provided',
         });
       }
 

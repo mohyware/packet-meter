@@ -48,13 +48,11 @@ export const apps = pgTable('apps', {
     .references(() => devices.id, { onDelete: 'cascade' })
     .notNull(),
 
-  // Unique identity of an app per device
+  // Unique identity of an app per device e.g. package name for Android, full exe path for Windows
   identifier: varchar('identifier', { length: 300 }).notNull(),
-  // Windows → full exe path (C:\Program Files\chrome.exe)
-  // Android → package name (com.whatsapp)
 
   displayName: varchar('display_name', { length: 255 }),
-  iconHash: text('icon_hash'), // Base64 encoded icon data
+  iconHash: text('icon_hash'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -65,6 +63,20 @@ export const users = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   timezone: varchar('timezone', { length: 50 }).default('UTC').notNull(),
+
+  // Subscription fields
+  subscriptionPlan: varchar('subscription_plan', { length: 50 })
+    .default('free')
+    .notNull(),
+  subscriptionStatus: varchar('subscription_status', { length: 50 })
+    .default('inactive')
+    .notNull(),
+  subscriptionId: varchar('subscription_id', { length: 255 }),
+  renewalPeriod: varchar('renewal_period', { length: 50 }),
+  subscriptionStartDate: timestamp('subscription_start_date'),
+  subscriptionEndDate: timestamp('subscription_end_date'),
+  subscriptionCancelledAt: timestamp('subscription_cancelled_at'),
+
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -76,6 +88,9 @@ export const devices = pgTable('devices', {
     .notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   deviceTokenHash: varchar('device_token_hash', { length: 255 }).notNull(),
+  deviceType: varchar('device_type', { length: 20 })
+    .default('unknown')
+    .notNull(),
   isActivated: boolean('is_activated').default(false).notNull(),
   lastHealthCheck: timestamp('last_health_check'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
