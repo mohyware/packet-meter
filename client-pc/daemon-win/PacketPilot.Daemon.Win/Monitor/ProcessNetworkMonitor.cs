@@ -8,6 +8,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -356,8 +358,19 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                 using (icon)
                 {
+                    // Convert icon to bitmap, then to PNG base64
+                    // Resize to 64x64 for better performance and smaller size
+                    int size = 64;
+                    using var bitmap = icon.ToBitmap();
+                    using var resized = new Bitmap(size, size);
+                    using (var g = Graphics.FromImage(resized))
+                    {
+                        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                        g.DrawImage(bitmap, 0, 0, size, size);
+                    }
+
                     using var ms = new MemoryStream();
-                    icon.Save(ms);
+                    resized.Save(ms, ImageFormat.Png);
                     byte[] iconBytes = ms.ToArray();
                     return Convert.ToBase64String(iconBytes);
                 }

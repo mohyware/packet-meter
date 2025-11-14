@@ -80,7 +80,7 @@ namespace PacketPilot.Daemon.Win.Reporter
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
+                request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
                 _logger.Debug("Sending health check", "url", url);
 
@@ -201,7 +201,7 @@ namespace PacketPilot.Daemon.Win.Reporter
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Content = content;
                 request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
+                request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
                 _logger.Debug("Registering apps", "url", url, "apps_count", apps.Count);
 
@@ -239,7 +239,7 @@ namespace PacketPilot.Daemon.Win.Reporter
                     using var request = new HttpRequestMessage(HttpMethod.Post, url);
                     request.Content = content;
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                    request.Headers.Add("User-Agent", "PacketPilot-Daemon/1.0");
+                    request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
                     var totalRxMB = (double)totalRx / (1024 * 1024);
                     var totalTxMB = (double)totalTx / (1024 * 1024);
