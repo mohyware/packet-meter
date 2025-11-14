@@ -297,6 +297,7 @@ export async function getDeviceReports(
         id: string;
         identifier: string;
         displayName: string | null;
+        iconHash: string | null;
         totalRx: string;
         totalTx: string;
       }[];
@@ -324,6 +325,7 @@ export async function getDeviceReports(
       id: report.appId,
       identifier: report.app.identifier,
       displayName: report.app.displayName,
+      iconHash: report.app.iconHash ?? null,
       totalRx: report.totalRx,
       totalTx: report.totalTx,
     });

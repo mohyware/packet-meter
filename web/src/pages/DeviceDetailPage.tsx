@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useDevices } from '../hooks/useDevices';
 import { TimePeriodSelector } from '../components/TimePeriodSelector';
 import {
@@ -7,6 +8,7 @@ import {
   useDeviceReportsStore,
 } from '../stores/deviceReportsStore';
 import { UsageChart } from '../components/UsageChart';
+import { timeAgo } from '../utils/utils';
 
 export default function DeviceDetailPage() {
   const { deviceId } = useParams<{ deviceId: string }>();
@@ -90,7 +92,10 @@ export default function DeviceDetailPage() {
   }
 
   const handleEditName = async () => {
-    if (!editName.trim() || !deviceId) return;
+    if (!editName.trim() || !deviceId) {
+      toast.error('Please enter a device name');
+      return;
+    }
     try {
       await updateDeviceAsync({ deviceId, name: editName.trim() });
       setEditingName(false);
@@ -189,7 +194,7 @@ export default function DeviceDetailPage() {
             </span>
             {device.lastHealthCheck && (
               <span className="text-sm text-gray-600">
-                Last seen: {new Date(device.lastHealthCheck).toLocaleString()}
+                Last seen: {timeAgo(device.lastHealthCheck)}
               </span>
             )}
           </div>

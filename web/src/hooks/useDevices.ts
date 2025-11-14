@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { devicesApi } from '../api/devices'
-import { AxiosError } from 'axios'
+import toast from 'react-hot-toast'
 
 export const useDevices = () => {
     const queryClient = useQueryClient()
@@ -15,9 +15,7 @@ export const useDevices = () => {
         mutationFn: (name: string) => devicesApi.createDevice(name),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['devices'] })
-        },
-        onError: (error: AxiosError) => {
-            console.error('Create device error:', error.response?.data)
+            toast.success('Device created successfully!')
         },
     })
 
@@ -25,9 +23,7 @@ export const useDevices = () => {
         mutationFn: (deviceId: string) => devicesApi.activateDevice(deviceId),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['devices'] })
-        },
-        onError: (error: AxiosError) => {
-            console.error('Activate device error:', error.response?.data)
+            toast.success('Device activated successfully!')
         },
     })
 
@@ -36,9 +32,7 @@ export const useDevices = () => {
             devicesApi.updateDevice(deviceId, name),
         onSuccess: async () => {
             await queryClient.invalidateQueries({ queryKey: ['devices'] })
-        },
-        onError: (error: AxiosError) => {
-            console.error('Update device error:', error.response?.data)
+            toast.success('Device name updated successfully!')
         },
     })
 
@@ -47,9 +41,7 @@ export const useDevices = () => {
         onSuccess: async (_, deviceId) => {
             await queryClient.invalidateQueries({ queryKey: ['devices'] })
             await queryClient.invalidateQueries({ queryKey: ['devices', deviceId, 'usage'] })
-        },
-        onError: (error: AxiosError) => {
-            console.error('Delete device error:', error.response?.data)
+            toast.success('Device deleted successfully!')
         },
     })
 

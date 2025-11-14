@@ -15,6 +15,7 @@ import {
   Smartphone,
   Terminal,
   Zap,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -202,19 +203,26 @@ export default function LandingPage() {
           <p className="text-sm">© 2025 PacketPilot. All rights reserved.</p>
           <div className="flex flex-col sm:flex-row items-center gap-4 text-sm">
             <span className="flex items-center gap-3">
-              <span>Made by Mohyware</span>
+              <a
+                href={import.meta.env.VITE_PORTFOLIO_URL}
+                target="_blank"
+                className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Mohy.dev
+              </a>
               <a
                 href={import.meta.env.VITE_LINKEDIN_URL}
                 target="_blank"
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer"
               >
                 <Linkedin className="h-4 w-4" />
                 LinkedIn
               </a>
               <a
-                href={import.meta.env.VITE_PROJECT_GITHUB_URL}
+                href={import.meta.env.VITE_GITHUB_URL}
                 target="_blank"
-                className="flex items-center gap-2 hover:text-white transition-colors"
+                className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer"
               >
                 <Github className="h-4 w-4" />
                 GitHub

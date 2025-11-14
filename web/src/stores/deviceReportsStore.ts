@@ -66,7 +66,7 @@ export const useDeviceReportsStore = create<DeviceReportsState>((set, get) => ({
             (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
 
-        const appMap = new Map<string, { totalRx: bigint; totalTx: bigint; identifier: string; displayName: string | null }>();
+        const appMap = new Map<string, { totalRx: bigint; totalTx: bigint; identifier: string; displayName: string | null; iconHash: string | null }>();
 
         let totalRx = BigInt(0);
         let totalTx = BigInt(0);
@@ -88,6 +88,7 @@ export const useDeviceReportsStore = create<DeviceReportsState>((set, get) => ({
                         totalTx: BigInt(app.totalTx),
                         identifier: app.identifier,
                         displayName: app.displayName,
+                        iconHash: app.iconHash,
                     });
                 }
             }
@@ -97,6 +98,7 @@ export const useDeviceReportsStore = create<DeviceReportsState>((set, get) => ({
             id: app.identifier,
             identifier: app.identifier,
             displayName: app.displayName,
+            iconHash: app.iconHash,
             totalRx: app.totalRx.toString(),
             totalTx: app.totalTx.toString(),
         }));

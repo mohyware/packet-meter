@@ -1,4 +1,5 @@
 import { useDeviceReportsStore } from '../stores/deviceReportsStore';
+import { AppIcon } from '../utils/appIcon';
 
 export function AppUsageBars() {
   const { selectedReport, allAppsReport, setSelectedReport } =
@@ -24,6 +25,10 @@ export function AppUsageBars() {
 
   const apps = [...report.apps]
     .map((app) => ({
+      id: app.id,
+      identifier: app.identifier,
+      displayName: app.displayName,
+      iconHash: app.iconHash,
       name: app.displayName ?? app.identifier,
       rx: bytesToMB(app.totalRx),
       tx: bytesToMB(app.totalTx),
@@ -137,9 +142,16 @@ export function AppUsageBars() {
 
           return (
             <div
-              key={index}
+              key={app.id || index}
               className="flex items-center gap-4 py-3 border-b border-gray-200 last:border-0"
             >
+              <AppIcon
+                identifier={app.identifier}
+                displayName={app.displayName}
+                iconHash={app.iconHash}
+                size={30}
+                className="mr-2"
+              />
               <div className="w-48 min-w-48 flex-shrink-0">
                 <div
                   className="font-medium text-gray-800 truncate"

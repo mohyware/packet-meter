@@ -53,14 +53,23 @@ export function UsageChart() {
   const timeSpanHours = (maxTime - minTime) / (1000 * 60 * 60);
   const timeSpanDays = timeSpanHours / 24;
 
+  // Downsample TODO: add conditions for different screen sizes
+  const shouldDownsample = timeSpanDays >= 6;
+  const displayReports = useMemo(() => {
+    if (!shouldDownsample) return sortedReports;
+    return sortedReports.filter(
+      (_, index) => index % Math.ceil(timeSpanDays / 3) === 0
+    );
+  }, [sortedReports, shouldDownsample, timeSpanDays]);
+
   // Count unique days in the dataset
   const uniqueDays = new Set(
-    sortedReports.map((r) => new Date(r.timestamp).toLocaleDateString())
+    displayReports.map((r) => new Date(r.timestamp).toLocaleDateString())
   ).size;
 
   // Count unique months in the dataset
   const uniqueMonths = new Set(
-    sortedReports.map((r) => {
+    displayReports.map((r) => {
       const d = new Date(r.timestamp);
       return `${d.getFullYear()}-${d.getMonth()}`;
     })
@@ -75,6 +84,14 @@ export function UsageChart() {
       return date.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
+      });
+    }
+
+    // Last 7 days
+    if (timeSpanDays < 7) {
+      return date.toLocaleDateString([], {
+        day: 'numeric',
+        weekday: 'short',
       });
     }
 
@@ -110,10 +127,10 @@ export function UsageChart() {
     );
   };
 
-  const labels = sortedReports.map((report) => formatLabel(report.timestamp));
+  const labels = displayReports.map((report) => formatLabel(report.timestamp));
 
   // Calculate total usage (download + upload) for each report
-  const totalData = sortedReports.map(
+  const totalData = displayReports.map(
     (report) => bytesToMB(report.totalRx) + bytesToMB(report.totalTx)
   );
 
@@ -144,8 +161,8 @@ export function UsageChart() {
     if (elements && elements.length > 0) {
       const element = elements[0];
       const index = element.index;
-      if (index >= 0 && index < sortedReports.length) {
-        const clickedReport = sortedReports[index];
+      if (index >= 0 && index < displayReports.length) {
+        const clickedReport = displayReports[index];
         if (clickedReport) {
           setSelectedReport(clickedReport);
         }
@@ -193,7 +210,7 @@ export function UsageChart() {
           title: function (tooltipItems: TooltipItem<'line'>[]) {
             // Show timestamp as title
             const index = tooltipItems[0].dataIndex;
-            const report = sortedReports[index];
+            const report = displayReports[index];
             if (report) {
               const date = new Date(report.timestamp);
               return date.toLocaleString();
@@ -202,7 +219,7 @@ export function UsageChart() {
           },
           label: function (context: TooltipItem<'line'>) {
             const index = context.dataIndex;
-            const report = sortedReports[index];
+            const report = displayReports[index];
 
             if (!report) return '';
 
@@ -218,7 +235,7 @@ export function UsageChart() {
           },
           afterBody: function (tooltipItems: TooltipItem<'line'>[]) {
             const index = tooltipItems[0].dataIndex;
-            const report = sortedReports[index];
+            const report = displayReports[index];
 
             if (!report || report.apps.length === 0) return [];
 

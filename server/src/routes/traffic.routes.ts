@@ -41,6 +41,8 @@ router.post('/apps', requireDeviceAuth, async (req: Request, res: Response) => {
         .json({ success: false, message: 'invalid device token' });
     }
 
+    await deviceService.updateDeviceHealthCheck(device.id);
+
     // Check if device is activated
     if (!device.isActivated) {
       return res.status(403).json({
@@ -136,6 +138,8 @@ router.post(
           .status(401)
           .json({ success: false, message: 'invalid device token' });
       }
+
+      await deviceService.updateDeviceHealthCheck(device.id);
 
       // Check if device is activated - require activation before allowing traffic reports
       if (!device.isActivated) {

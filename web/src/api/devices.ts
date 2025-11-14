@@ -31,6 +31,7 @@ export interface DeviceUsageReport {
         id: string
         identifier: string
         displayName: string | null
+        iconHash: string | null
         totalRx: string
         totalTx: string
     }[]

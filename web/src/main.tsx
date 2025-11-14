@@ -1,14 +1,64 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleOAuthProvider } from '@react-oauth/google';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryCache,
+  QueryClient,
+  QueryClientProvider,
+  MutationCache,
+} from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import toast, { Toaster } from 'react-hot-toast';
 import type { AxiosError } from 'axios';
 import App from './App';
 import './index.css';
 
+// Global error handler for queries
+const queryCache = new QueryCache({
+  onError: (error: unknown) => {
+    const axiosError = error as AxiosError<{ message?: string }>;
+
+    // Skip handling if:
+    // 1. 401 (unauthorized) - handled by API interceptor (redirects to login)
+    // 2. Cancelled requests
+    if (
+      axiosError.response?.status === 401 ||
+      axiosError.code === 'ERR_CANCELED'
+    ) {
+      return;
+    }
+
+    // Extract error message
+    const errorMessage =
+      (axiosError.response?.data as { message?: string })?.message ??
+      axiosError.message ??
+      'Something went wrong';
+
+    toast.error(errorMessage);
+  },
+});
+
+// Same for mutations
+const mutationCache = new MutationCache({
+  onError: (error: unknown) => {
+    const axiosError = error as AxiosError<{ message?: string }>;
+    if (
+      axiosError.response?.status === 401 ||
+      axiosError.code === 'ERR_CANCELED'
+    ) {
+      return;
+    }
+    const errorMessage =
+      (axiosError.response?.data as { message?: string })?.message ??
+      axiosError.message ??
+      'Something went wrong';
+    toast.error(errorMessage);
+  },
+});
+
 const queryClient = new QueryClient({
+  queryCache,
+  mutationCache,
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -21,6 +71,10 @@ const queryClient = new QueryClient({
         return failureCount < 1;
       },
       // Don't throw errors by default - let components handle them
+      throwOnError: false,
+    },
+    mutations: {
+      // Don't throw errors by default - handled globally and in hooks
       throwOnError: false,
     },
   },
