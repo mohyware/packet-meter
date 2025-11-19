@@ -32,5 +32,15 @@ namespace PacketPilot.Daemon.Win.Utils
             var now = DateTime.UtcNow;
             return $"{now:yyyy-MM-ddTHH}";
         }
+        public static string GetAppDataDirectory()
+        {
+            var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var dir = Path.Combine(baseDir, "PacketPilot");
+            if (!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            return dir;
+        }
     }
 }

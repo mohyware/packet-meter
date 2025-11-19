@@ -101,9 +101,9 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
 
                 // Start periodic logging of process usage
-                _ = Task.Run(() => LogProcessUsagePeriodically(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+                _ = Task.Run(() => UpdateUsageTaskAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
                 // Start periodic cache clearing (hourly)
-                _ = Task.Run(() => ClearCachesPeriodically(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+                _ = Task.Run(() => ClearCachesTaskAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
                 await Task.CompletedTask;
             }
@@ -453,7 +453,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private async Task LogProcessUsagePeriodically(CancellationToken cancellationToken)
+        private async Task UpdateUsageTaskAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -480,7 +480,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private async Task ClearCachesPeriodically(CancellationToken cancellationToken)
+        private async Task ClearCachesTaskAsync(CancellationToken cancellationToken)
         {
             try
             {
@@ -602,20 +602,9 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private string GetAppDataDirectory()
-        {
-            var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            var dir = Path.Combine(baseDir, "PacketPilot");
-            if (!Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-            return dir;
-        }
-
         private string GetPersistFilePath()
         {
-            return Path.Combine(GetAppDataDirectory(), "process_usage.json");
+            return Path.Combine(UtilsHelper.GetAppDataDirectory(), "process_usage.json");
         }
 
         private void SaveUsageSnapshot()

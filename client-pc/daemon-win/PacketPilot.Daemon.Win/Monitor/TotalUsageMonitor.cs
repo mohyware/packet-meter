@@ -40,9 +40,8 @@ namespace PacketPilot.Daemon.Win.Monitor
         {
             _config = config;
             _logger = logger;
-            _usageFile = string.IsNullOrEmpty(config.UsageFile)
-                ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PacketPilot", "total_usage.json")
-                : config.UsageFile;
+            _usageFile = Path.Combine(UtilsHelper.GetAppDataDirectory(), "process_usage.json");
+
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -66,8 +65,8 @@ namespace PacketPilot.Daemon.Win.Monitor
                 InitUsageSnapshot();
             }
 
-            // Start usage tracking
-            _ = Task.Run(() => UpdateUsageAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
+            // Update usage + clear usage every hour
+            _ = Task.Run(() => UpdateUsageTaskAsync(_cancellationTokenSource.Token), _cancellationTokenSource.Token);
 
             await Task.CompletedTask;
         }
@@ -255,52 +254,52 @@ namespace PacketPilot.Daemon.Win.Monitor
             _logger.Info("Initialized interface usage", "interface", iface, "last_rx", rx, "last_tx", tx);
         }
 
-        private async Task UpdateUsageAsync(CancellationToken cancellationToken)
+        private async Task UpdateUsageTaskAsync(CancellationToken cancellationToken)
         {
-            TimeSpan interval = UtilsHelper.ParseTimeSpan(_config.UpdateInterval);
-
-            using var timer = new PeriodicTimer(interval);
-
-            while (!cancellationToken.IsCancellationRequested)
+            try
             {
-                try
-                {
-                    await timer.WaitForNextTickAsync(cancellationToken);
-
-                    var currentUtcKey = UtilsHelper.GetCurrentUtcKey();
-                    _UsageLock.EnterReadLock();
-                    try
+                await AsyncTask.RunPeriodicAsync(
+                    UtilsHelper.ParseTimeSpan(_config.UpdateInterval),
+                    token =>
                     {
-                        if (_totalUsage != null && _totalUsage.UtcKey != currentUtcKey)
+                        try
                         {
-                            _logger.Info("Window of time changed, resetting total usage snapshot", "old_utc_key", _totalUsage.UtcKey, "new_utc_key", currentUtcKey);
-                            _UsageLock.ExitReadLock();
-                            InitUsageSnapshot();
-                            continue;
+                            var currentUtcKey = UtilsHelper.GetCurrentUtcKey();
+                            _UsageLock.EnterReadLock();
+                            try
+                            {
+                                if (_totalUsage != null && _totalUsage.UtcKey != currentUtcKey)
+                                {
+                                    _logger.Info("Window of time changed, resetting total usage snapshot", "old_utc_key", _totalUsage.UtcKey, "new_utc_key", currentUtcKey);
+                                    _UsageLock.ExitReadLock();
+                                    InitUsageSnapshot();
+                                    return Task.CompletedTask;
+                                }
+                            }
+                            finally
+                            {
+                                if (_UsageLock.IsReadLockHeld)
+                                    _UsageLock.ExitReadLock();
+                            }
+
+                            UpdateTotalUsage();
                         }
-                    }
-                    finally
-                    {
-                        if (_UsageLock.IsReadLockHeld)
-                            _UsageLock.ExitReadLock();
-                    }
+                        catch (Exception ex)
+                        {
+                            _logger.Error("Error in total usage tracking", "error", ex.Message);
+                        }
 
-                    UpdateUsage();
-                }
-                catch (OperationCanceledException)
-                {
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error("Error in total usage tracking", "error", ex.Message);
-                }
+                        return Task.CompletedTask;
+                    },
+                    cancellationToken);
             }
-
-            _logger.Info("Total usage monitor stopped");
+            catch (OperationCanceledException)
+            {
+                _logger.Info("Total usage monitor stopped");
+            }
         }
 
-        private void UpdateUsage()
+        private void UpdateTotalUsage()
         {
             _UsageLock.EnterWriteLock();
             try

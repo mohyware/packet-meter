@@ -2,6 +2,7 @@ using PacketPilot.Daemon.Win.Config;
 using PacketPilot.Daemon.Win.Logger;
 using PacketPilot.Daemon.Win.Monitor;
 using PacketPilot.Daemon.Win.Reporter;
+using PacketPilot.Daemon.Win.Models;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,7 +41,7 @@ namespace PacketPilot.Daemon.Win.Daemon
                 RetryDelay = _config.Reporter.RetryDelay
             };
 
-            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _processMonitor, _trafficMonitor);
+            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _processMonitor, _trafficMonitor, ReporterMode.PerProcess);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)

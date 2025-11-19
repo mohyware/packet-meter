@@ -50,7 +50,7 @@ namespace PacketPilot.Daemon.Win.Models
     public enum ReporterMode
     {
         TotalUsage,
-        PerApplication
+        PerProcess
     }
 
     public class ServerResponse
