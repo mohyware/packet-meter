@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDevices } from '../hooks/useDevices';
+import { useAuth } from '../hooks/useAuth';
 import { useAllDevicesUsage } from '../hooks/useAllDevicesUsage';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ export default function DashboardPage() {
     deleteDeviceAsync,
     isDeleting,
   } = useDevices();
+  const { features: planFeatures } = useAuth();
   const [newDeviceName, setNewDeviceName] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -38,6 +40,13 @@ export default function DashboardPage() {
   const previousDevicesRef = useRef<typeof devices>([]);
   const navigate = useNavigate();
   const { stats: usageStats, isLoading: isLoadingUsage } = useAllDevicesUsage();
+  const isUnlimitedDevices = planFeatures.maxDevices < 0;
+  const usedDeviceSlots = devices.length;
+  const deviceLimit = planFeatures.maxDevices;
+  const remainingDeviceSlots = isUnlimitedDevices
+    ? Infinity
+    : Math.max(deviceLimit - usedDeviceSlots, 0);
+  const isAtDeviceLimit = !isUnlimitedDevices && remainingDeviceSlots === 0;
 
   // Detect when devices change from pending to pendingApproval
   useEffect(() => {
@@ -67,6 +76,13 @@ export default function DashboardPage() {
 
   const handleCreateDevice = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAtDeviceLimit) {
+      toast.error(
+        `You've reached the ${planFeatures.planName} plan limit of ${deviceLimit} devices.`
+      );
+      setShowCreateForm(false);
+      return;
+    }
     if (!newDeviceName.trim()) {
       toast.error('Please enter a device name');
       return;
@@ -237,13 +253,42 @@ export default function DashboardPage() {
             </select>
           </div>
           <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+            onClick={() => {
+              if (isAtDeviceLimit && !showCreateForm) {
+                toast.error(
+                  `You've used all ${deviceLimit} device slots. Remove a device or upgrade your plan.`
+                );
+                return;
+              }
+              setShowCreateForm(!showCreateForm);
+            }}
+            disabled={isAtDeviceLimit && !showCreateForm}
+            className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {showCreateForm ? 'Cancel' : '+ Add Device'}
           </button>
         </div>
       </div>
+
+      {isAtDeviceLimit && (
+        <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-900 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium">
+              You've reached the device limit for the {planFeatures.planName}{' '}
+              plan.
+            </p>
+            <p className="text-amber-800">
+              Remove a device or upgrade to continue adding new ones.
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/settings')}
+            className="px-4 py-2 bg-amber-600 text-white text-xs font-semibold rounded-md hover:bg-amber-700 transition-colors"
+          >
+            Review plans
+          </button>
+        </div>
+      )}
 
       {showCreateForm && (
         <form

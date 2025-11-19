@@ -4,6 +4,7 @@ import Header from './components/Header';
 import LandingPage from './pages/LandingPage';
 import DashboardPage from './pages/DashboardPage';
 import DeviceDetailPage from './pages/DeviceDetailPage';
+import SettingsPage from './pages/SettingsPage';
 import Layout from './components/Layout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -54,6 +55,16 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <DeviceDetailPage />
+              </Layout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings"
+          element={
+            <ProtectedRoute>
+              <Layout>
+                <SettingsPage />
               </Layout>
             </ProtectedRoute>
           }

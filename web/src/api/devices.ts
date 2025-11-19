@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { PlanFeatures } from './auth'
 
 export interface Device {
     id: string
@@ -40,6 +41,7 @@ export interface DeviceUsageReport {
 export interface DevicesResponse {
     success: boolean
     devices: Device[]
+    features: PlanFeatures
 }
 
 export interface DeviceUsageResponse {

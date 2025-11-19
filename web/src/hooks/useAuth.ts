@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { authApi } from '../api/auth'
+import { authApi, DEFAULT_PLAN_FEATURES, PlanFeatures } from '../api/auth'
 import type { AxiosError } from 'axios';
 
 export const useAuth = () => {
@@ -18,6 +18,8 @@ export const useAuth = () => {
         // Don't throw errors for 401/403 (unauthorized) or network errors - handle gracefully
         throwOnError: false,
     })
+
+    const planFeatures: PlanFeatures = userInfo?.features ?? DEFAULT_PLAN_FEATURES
 
     useEffect(() => {
         if (error && 'code' in error) {
@@ -73,6 +75,7 @@ export const useAuth = () => {
 
     return {
         user: userInfo,
+        features: planFeatures,
         isAuthenticated: !!userInfo?.success,
         isLoading,
         error,

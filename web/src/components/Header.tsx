@@ -6,11 +6,12 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { loginAsync, isAuthenticated, user, logout } = useAuth();
+  const { loginAsync, isAuthenticated, user, logout, features } = useAuth();
   const location = useLocation();
   const isDashboardRoute =
     location.pathname.startsWith('/dashboard') ||
-    location.pathname.startsWith('/devices');
+    location.pathname.startsWith('/devices') ||
+    location.pathname.startsWith('/settings');
 
   if (isAuthenticated) {
     return (
@@ -35,14 +36,19 @@ export default function Header() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
+                className="flex items-center gap-3 px-3 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200"
               >
                 <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium">
                   {user?.user?.username?.charAt(0).toUpperCase() ?? 'U'}
                 </div>
-                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                  {user?.user?.username ?? 'User'}
-                </span>
+                <div className="hidden sm:flex flex-col text-left leading-tight">
+                  <span className="text-sm font-medium text-gray-700">
+                    {user?.user?.username ?? 'User'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-indigo-700 uppercase tracking-wide">
+                    {features.planName ?? 'free'} plan
+                  </span>
+                </div>
                 <svg
                   className={`w-4 h-4 text-gray-500 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
                   fill="none"
@@ -74,7 +80,14 @@ export default function Header() {
                         {user?.user?.email ?? ''}
                       </p>
                     </div>
-                    <div className="px-4 py-2">
+                    <div className="px-4 py-2 space-y-1">
+                      <Link
+                        to="/settings"
+                        onClick={() => setShowUserMenu(false)}
+                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded transition-colors"
+                      >
+                        Settings
+                      </Link>
                       <button
                         onClick={() => {
                           logout();

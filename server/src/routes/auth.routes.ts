@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import * as userService from '../services/user.service';
 import { requireAuth } from '../middleware/auth';
+import { requirePlanFeatures } from '../middleware/subscription';
 import { registerSchema, loginSchema, googleAuthSchema } from './validation';
 import { hasErrorMessage, getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
@@ -193,30 +194,36 @@ router.post('/google', async (req: Request, res: Response) => {
  * GET /api/v1/auth/me
  * Get current user info
  */
-router.get('/me', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const user = await userService.getUserById(req.userId!);
-    if (!user) {
+router.get(
+  '/me',
+  requireAuth,
+  requirePlanFeatures,
+  async (req: Request, res: Response) => {
+    try {
+      const user = await userService.getUserById(req.userId!);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: 'user not found' });
+      }
+      return res.json({
+        success: true,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          timezone: user.timezone,
+        },
+        features: req.planFeatures,
+      });
+    } catch (error: unknown) {
+      logger.error('Get user error:', error);
       return res
-        .status(404)
-        .json({ success: false, message: 'user not found' });
+        .status(500)
+        .json({ success: false, message: 'internal server error' });
     }
-    return res.json({
-      success: true,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        timezone: user.timezone,
-      },
-    });
-  } catch (error: unknown) {
-    logger.error('Get user error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'internal server error' });
   }
-});
+);
 
 /**
  * TODO: We need to add this as optional in the frontend.

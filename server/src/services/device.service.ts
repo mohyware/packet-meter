@@ -14,6 +14,17 @@ export interface CreateDeviceInput {
   name: string;
 }
 
+export async function countUserDevices(userId: string) {
+  const userDevices = await db.query.devices.findMany({
+    where: eq(devices.userId, userId),
+    columns: {
+      id: true,
+    },
+  });
+
+  return userDevices.length;
+}
+
 export interface DeviceWithUsage extends InferSelectModel<typeof devices> {
   totalReports?: number;
   lastReportDate?: Date | null;

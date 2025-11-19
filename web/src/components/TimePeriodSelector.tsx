@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTimePeriodStore, TimePeriod } from '../stores/timePeriodStore';
+import { useAuth } from '../hooks/useAuth';
 
 const MAX_COUNTS = {
   hours: 24,
@@ -36,6 +37,8 @@ export function TimePeriodSelector() {
     setPeriod,
     setCount,
   } = useTimePeriodStore();
+  const { features } = useAuth();
+  const isFreePlan = features.planName === 'free';
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -60,11 +63,15 @@ export function TimePeriodSelector() {
     };
   }, [isOpen]);
 
-  const periods: { value: TimePeriod | null; label: string }[] = [
-    { value: null, label: 'All' },
+  const periods: {
+    value: TimePeriod | null;
+    label: string;
+    premium?: boolean;
+  }[] = [
+    { value: null, label: 'All', premium: true },
     { value: 'hours', label: 'Hours' },
-    { value: 'days', label: 'Days' },
-    { value: 'months', label: 'Months' },
+    { value: 'days', label: 'Days', premium: true },
+    { value: 'months', label: 'Months', premium: true },
   ];
 
   const getMaxCount = (period: TimePeriod | null): number => {
@@ -78,6 +85,39 @@ export function TimePeriodSelector() {
     selectedPeriod,
     selectedCount
   );
+
+  useEffect(() => {
+    if (!isFreePlan) {
+      return;
+    }
+    if (
+      !selectedPeriod ||
+      selectedPeriod === 'days' ||
+      selectedPeriod === 'months'
+    ) {
+      setPeriod('hours');
+      if (
+        !currentPreset ||
+        currentPreset === '7days' ||
+        currentPreset === '30days'
+      ) {
+        setPreset('24hours');
+      }
+    }
+    if (selectedPeriod === 'hours' && selectedCount > MAX_COUNTS.hours) {
+      setCount(MAX_COUNTS.hours);
+    }
+  }, [
+    isFreePlan,
+    selectedPeriod,
+    selectedCount,
+    setPeriod,
+    setPreset,
+    setCount,
+    currentPreset,
+  ]);
+
+  const premiumPresets = new Set(['7days', '30days', 'custom']);
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -130,22 +170,31 @@ export function TimePeriodSelector() {
                 <button
                   key={preset}
                   onClick={() => {
+                    const isPremiumOnly =
+                      isFreePlan && premiumPresets.has(preset);
+                    if (isPremiumOnly) return;
                     setPreset(preset);
                     if (preset !== 'custom') {
                       setIsOpen(false);
                     }
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-                    currentPreset === preset
-                      ? 'bg-blue-50 text-blue-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
+                  disabled={isFreePlan && premiumPresets.has(preset)}
+                  className={`w-full text-left px-3 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${
+                    isFreePlan && premiumPresets.has(preset)
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : currentPreset === preset
+                        ? 'bg-blue-50 text-blue-700 font-medium'
+                        : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
-                  {preset === '5hours' && 'Last 5 hours'}
-                  {preset === '24hours' && 'Last 24 hours'}
-                  {preset === '7days' && 'Last 7 days'}
-                  {preset === '30days' && 'Last 30 days'}
-                  {preset === 'custom' && 'Custom (Beta)'}
+                  <span>
+                    {preset === '5hours' && 'Last 5 hours'}
+                    {preset === '24hours' && 'Last 24 hours'}
+                    {preset === '7days' && 'Last 7 days'}
+                    {preset === '30days' && 'Last 30 days'}
+                    {preset === 'custom' && 'Custom (Beta)'}
+                  </span>
+                  {isFreePlan && premiumPresets.has(preset) && <PremiumBadge />}
                 </button>
               ))}
             </div>
@@ -161,14 +210,22 @@ export function TimePeriodSelector() {
                 {periods.map((period) => (
                   <button
                     key={period.value ?? 'all'}
-                    onClick={() => setPeriod(period.value)}
-                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-                      selectedPeriod === period.value
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    onClick={() => {
+                      const disabled = isFreePlan && period.premium;
+                      if (disabled) return;
+                      setPeriod(period.value);
+                    }}
+                    disabled={isFreePlan && !!period.premium}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${
+                      isFreePlan && period.premium
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : selectedPeriod === period.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                     }`}
                   >
                     {period.label}
+                    {isFreePlan && period.premium && <PremiumBadge />}
                   </button>
                 ))}
               </div>
@@ -213,5 +270,13 @@ export function TimePeriodSelector() {
         </div>
       )}
     </div>
+  );
+}
+
+function PremiumBadge() {
+  return (
+    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded">
+      P
+    </span>
   );
 }

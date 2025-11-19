@@ -10,14 +10,33 @@ export interface GoogleAuthResponse {
     }
 }
 
+export interface PlanFeatures {
+    maxDevices: number
+    clearReportsInterval: number
+    emailReportsEnabled: boolean
+    reportType: 'total' | 'per_process'
+    planName: string
+}
+
+export const DEFAULT_PLAN_FEATURES: PlanFeatures = {
+    maxDevices: 3,
+    clearReportsInterval: 1,
+    emailReportsEnabled: false,
+    reportType: 'total',
+    planName: 'free',
+}
+
+export interface UserProfile {
+    id: string
+    username: string
+    email: string
+    timezone: string
+}
+
 export interface UserInfo {
     success: boolean
-    user?: {
-        id: string
-        username: string
-        email: string
-        timezone: string
-    }
+    user?: UserProfile
+    features?: PlanFeatures
 }
 
 /**
