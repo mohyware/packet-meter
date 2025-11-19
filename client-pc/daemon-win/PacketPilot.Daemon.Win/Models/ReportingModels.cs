@@ -39,18 +39,25 @@ namespace PacketPilot.Daemon.Win.Models
         public List<AppUsageData> Apps { get; set; } = new();
     }
 
+    public class TotalUsageReportRequest
+    {
+        public string Timestamp { get; set; } = "";
+        public string Date { get; set; } = "";
+        public long TotalRx { get; set; }
+        public long TotalTx { get; set; }
+    }
+
+    public enum ReporterMode
+    {
+        TotalUsage,
+        PerApplication
+    }
+
     public class ServerResponse
     {
         public bool Success { get; set; }
         public string Message { get; set; } = "";
-        public List<Command> Commands { get; set; } = new();
     }
 
-    public class Command
-    {
-        public string Type { get; set; } = "";
-        public string AppName { get; set; } = "";
-        public string Action { get; set; } = "";
-    }
 }
 

@@ -1,6 +1,6 @@
 namespace PacketPilot.Daemon.Win.Utils
 {
-    public static class OtherUtils
+    public static class UtilsHelper
     {
         public static TimeSpan ParseTimeSpan(string value)
         {
@@ -23,6 +23,14 @@ namespace PacketPilot.Daemon.Win.Utils
             {
                 return TimeSpan.Parse(value);
             }
+        }
+        /// <summary>
+        /// Gets the current UTC key (hour) in the format of yyyy-MM-ddTHH.
+        /// </summary>
+        public static string GetCurrentUtcKey()
+        {
+            var now = DateTime.UtcNow;
+            return $"{now:yyyy-MM-ddTHH}";
         }
     }
 }

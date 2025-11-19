@@ -32,12 +32,11 @@ namespace PacketPilot.Daemon.Win.Monitor
     public class ProcessNetworkMonitor : IDisposable
     {
         private readonly Logger.Logger _logger;
-
         private readonly Config.MonitorConfig _config;
         private TraceEventSession? _etwSession;
         private Task? _processingTask;
         private readonly ConcurrentDictionary<string, ProcessNetworkUsage> _processUsage = new();
-        private readonly ReaderWriterLockSlim _processUsageLock = new();
+        private readonly ReaderWriterLockSlim _UsageLock = new();
         private CancellationTokenSource? _cancellationTokenSource;
         private readonly object _sessionLock = new object();
         private bool _disposed = false;
@@ -302,7 +301,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
         private void UpdateProcessUsage(int processId, long txBytes, long rxBytes)
         {
-            _processUsageLock.EnterUpgradeableReadLock();
+            _UsageLock.EnterUpgradeableReadLock();
             try
             {
                 var processInfo = GetProcessInfo(processId);
@@ -310,7 +309,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                 if (!_processUsage.TryGetValue(identifier, out var usage))
                 {
-                    _processUsageLock.EnterWriteLock();
+                    _UsageLock.EnterWriteLock();
                     try
                     {
                         usage = new ProcessNetworkUsage
@@ -327,7 +326,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     }
                     finally
                     {
-                        _processUsageLock.ExitWriteLock();
+                        _UsageLock.ExitWriteLock();
                     }
                 }
 
@@ -342,7 +341,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
             finally
             {
-                _processUsageLock.ExitUpgradeableReadLock();
+                _UsageLock.ExitUpgradeableReadLock();
             }
         }
 
@@ -459,7 +458,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             try
             {
                 await AsyncTask.RunPeriodicAsync(
-                    OtherUtils.ParseTimeSpan(_config.UpdateInterval),
+                    UtilsHelper.ParseTimeSpan(_config.UpdateInterval),
                     token =>
                     {
                         try
@@ -517,14 +516,14 @@ namespace PacketPilot.Daemon.Win.Monitor
 
         private void ClearCaches()
         {
-            _processUsageLock.EnterWriteLock();
+            _UsageLock.EnterWriteLock();
             try
             {
                 _processUsage.Clear();
             }
             finally
             {
-                _processUsageLock.ExitWriteLock();
+                _UsageLock.ExitWriteLock();
             }
 
             _processInfoCache.Clear();
@@ -534,7 +533,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
         private void LogProcessUsage()
         {
-            _processUsageLock.EnterReadLock();
+            _UsageLock.EnterReadLock();
             try
             {
                 SaveUsageSnapshot();
@@ -577,13 +576,13 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
             finally
             {
-                _processUsageLock.ExitReadLock();
+                _UsageLock.ExitReadLock();
             }
         }
 
         public Dictionary<string, ProcessNetworkUsage> GetProcessUsage()
         {
-            _processUsageLock.EnterReadLock();
+            _UsageLock.EnterReadLock();
             try
             {
                 return _processUsage.ToDictionary(kvp => kvp.Key, kvp => new ProcessNetworkUsage
@@ -599,7 +598,7 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
             finally
             {
-                _processUsageLock.ExitReadLock();
+                _UsageLock.ExitReadLock();
             }
         }
 
@@ -617,12 +616,6 @@ namespace PacketPilot.Daemon.Win.Monitor
         private string GetPersistFilePath()
         {
             return Path.Combine(GetAppDataDirectory(), "process_usage.json");
-        }
-
-        private static string GetCurrentUtcKey()
-        {
-            var now = DateTime.UtcNow;
-            return $"{now:yyyy-MM-ddTHH}Z";
         }
 
         private void SaveUsageSnapshot()
@@ -644,7 +637,7 @@ namespace PacketPilot.Daemon.Win.Monitor
 
                 var snapshot = new PersistedUsage
                 {
-                    UtcKey = GetCurrentUtcKey(),
+                    UtcKey = UtilsHelper.GetCurrentUtcKey(),
                     Items = items
                 };
 
@@ -679,7 +672,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     return;
                 }
 
-                if (!string.Equals(data.UtcKey, GetCurrentUtcKey(), StringComparison.Ordinal))
+                if (!string.Equals(data.UtcKey, UtilsHelper.GetCurrentUtcKey(), StringComparison.Ordinal))
                 {
                     _logger.Info("Different utc window; ignore", "Cause:", "different utc key");
                     return;
@@ -692,7 +685,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
 
                 _logger.Info("Loading persisted usage snapshot", "path", path);
-                _processUsageLock.EnterWriteLock();
+                _UsageLock.EnterWriteLock();
                 try
                 {
                     foreach (var kvp in data.Items)
@@ -714,7 +707,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
                 finally
                 {
-                    _processUsageLock.ExitWriteLock();
+                    _UsageLock.ExitWriteLock();
                 }
             }
             catch (Exception ex)
@@ -735,7 +728,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 return;
 
             Stop();
-            _processUsageLock?.Dispose();
+            _UsageLock?.Dispose();
             _cancellationTokenSource?.Dispose();
             _disposed = true;
         }

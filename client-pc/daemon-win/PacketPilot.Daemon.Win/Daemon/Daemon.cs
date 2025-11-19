@@ -13,6 +13,7 @@ namespace PacketPilot.Daemon.Win.Daemon
         private readonly Config.Config _config;
         private readonly Logger.Logger _logger;
         private readonly ProcessNetworkMonitor _processMonitor;
+        private readonly TrafficMonitor _trafficMonitor;
         private readonly PacketPilot.Daemon.Win.Reporter.Reporter _reporter;
         private CancellationTokenSource? _cancellationTokenSource;
 
@@ -23,6 +24,7 @@ namespace PacketPilot.Daemon.Win.Daemon
 
             // Create monitor
             _processMonitor = new ProcessNetworkMonitor(_logger, _config.Monitor);
+            _trafficMonitor = new TrafficMonitor(_config.Monitor, _logger);
 
             // Create reporter
             var reporterConfig = new ReporterConfig
@@ -38,7 +40,7 @@ namespace PacketPilot.Daemon.Win.Daemon
                 RetryDelay = _config.Reporter.RetryDelay
             };
 
-            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _processMonitor);
+            _reporter = new PacketPilot.Daemon.Win.Reporter.Reporter(reporterConfig, _logger, _processMonitor, _trafficMonitor);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -49,14 +51,15 @@ namespace PacketPilot.Daemon.Win.Daemon
 
             try
             {
-                // Start traffic monitor
-                var monitorTask = _processMonitor.StartAsync(_cancellationTokenSource.Token);
+                // TODO: Stop task when its not used
+                var processMonitorTask = _processMonitor.StartAsync(_cancellationTokenSource.Token);
+                var trafficMonitorTask = _trafficMonitor.StartAsync(_cancellationTokenSource.Token);
 
                 // Start reporter
                 var reporterTask = _reporter.StartAsync(_cancellationTokenSource.Token);
 
                 // Wait for both tasks
-                await Task.WhenAll(monitorTask, reporterTask);
+                await Task.WhenAll(processMonitorTask, trafficMonitorTask, reporterTask);
             }
             catch (OperationCanceledException)
             {
@@ -78,18 +81,15 @@ namespace PacketPilot.Daemon.Win.Daemon
         {
             _cancellationTokenSource?.Cancel();
             _processMonitor?.Stop();
+            _trafficMonitor?.Stop();
             _reporter?.Stop();
         }
-
-        // public void ResetStats()
-        // {
-        //     _processMonitor?.ResetStats();
-        // }
 
         public void Dispose()
         {
             _cancellationTokenSource?.Dispose();
             _processMonitor?.Dispose();
+            _trafficMonitor?.Dispose();
             _reporter?.Dispose();
         }
     }
