@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import { PlanFeatures } from './auth'
+import { getUserTimezone } from '../utils/timezone'
 
 export interface Device {
     id: string
@@ -80,7 +81,7 @@ export const devicesApi = {
         period?: 'hours' | 'days' | 'months',
         count?: number
     ): Promise<DeviceUsageResponse> => {
-        const params: Record<string, string | number> = { limit }
+        const params: Record<string, string | number> = { limit, timezone: getUserTimezone() }
         if (period) {
             params.period = period
         }

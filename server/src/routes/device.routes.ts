@@ -6,6 +6,7 @@ import { requirePlanFeatures } from '../middleware/subscription';
 import { createDeviceSchema, updateDeviceSchema } from './validation';
 import logger from '../utils/logger';
 import * as userService from '../services/user.service';
+import { isValidTimeZone } from '../utils/timezone';
 
 const router = Router();
 
@@ -179,16 +180,18 @@ router.post(
  *   - limit: number of reports to return (default: 100)
  *   - period: 'hours' | 'days' | 'months' (optional)
  *   - count: number of periods to look back (optional, required if period is provided)
+ *   - timezone: IANA timezone name from the client (optional, auto-updates user profile)
  */
 router.get(
   '/:deviceId/usage',
   requireAuth,
   async (req: Request, res: Response) => {
     try {
+      const userId = req.userId;
       const deviceId = req.params.deviceId;
       const device = await deviceService.getDeviceById(deviceId);
 
-      if (!device || device.userId !== req.userId) {
+      if (!device || device.userId !== userId) {
         return res
           .status(404)
           .json({ success: false, message: 'device not found' });
@@ -223,7 +226,20 @@ router.get(
         });
       }
 
-      const timezone = await userService.findUserTimezone(req.userId);
+      // Update user timezone if changed
+      const clientTimezone =
+        typeof req.query.timezone === 'string' ? req.query.timezone : undefined;
+
+      let timezone = await userService.findUserTimezone(userId);
+
+      if (
+        clientTimezone &&
+        clientTimezone !== timezone &&
+        isValidTimeZone(clientTimezone)
+      ) {
+        await userService.updateUserTimezone(userId, clientTimezone);
+        timezone = clientTimezone;
+      }
 
       const reports = await deviceService.getDeviceReports(
         deviceId,

@@ -1,3 +1,18 @@
+export function isValidTimeZone(
+  timezone: string | undefined
+): timezone is string {
+  if (!timezone || typeof timezone !== 'string') {
+    return false;
+  }
+
+  try {
+    Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 import { getErrorMessage } from './errors';
 import logger from './logger';
 

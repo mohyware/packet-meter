@@ -42,7 +42,7 @@ export default function SettingsPage() {
     () => features.emailReportsEnabled,
     [features.emailReportsEnabled]
   );
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+
   const planClearLimit =
     typeof features.maxClearReportsInterval === 'number'
       ? features.maxClearReportsInterval
@@ -92,164 +92,24 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mb-8">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Account</h2>
-          <div className="space-y-1 text-sm text-gray-700">
-            <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 last:border-b-0">
-              <div className="flex-shrink-0 min-w-[100px]">
-                <span className="text-sm font-medium text-gray-700">Name</span>
-              </div>
-              <div className="flex-1 flex items-center justify-end">
-                <span className="font-medium text-gray-900">
-                  {profile?.username ?? 'Unknown user'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 last:border-b-0">
-              <div className="flex-shrink-0 min-w-[100px]">
-                <span className="text-sm font-medium text-gray-700">Email</span>
-              </div>
-              <div className="flex-1 flex items-center justify-end">
-                <span className="font-medium text-gray-900">
-                  {profile?.email ?? '—'}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-4 py-2 border-b border-gray-100 last:border-b-0">
-              <div className="flex-shrink-0 min-w-[100px]">
-                <span className="text-sm font-medium text-gray-700">
-                  Timezone
-                </span>
-              </div>
-              <div className="flex-1 flex items-center justify-end">
-                <span className="font-medium text-gray-900">
-                  {profile?.timezone ?? 'UTC'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">Plan</h2>
-            <p className="text-2xl font-bold text-indigo-900">{planLabel}</p>
-            <p className="text-sm text-gray-600 mb-4">{deviceLimitText}</p>
-            <div className="space-y-0 text-sm text-gray-700">
-              <SettingRow label="Devices connected">
-                <span className="font-medium text-gray-900">
-                  {devices.length}
-                </span>
-              </SettingRow>
-
-              <SettingRow label="Report detail">
-                <span className="font-medium text-gray-900">
-                  {features.reportType === 'per_process'
-                    ? 'Per process'
-                    : 'Total only'}
-                </span>
-              </SettingRow>
-
-              <SettingRow
-                label="Clear interval (days)"
-                helper={
-                  <span className="text-xs text-gray-500">
-                    Plan limit:{' '}
-                    {planClearLimit <= 0
-                      ? 'Never automatically cleared'
-                      : `Up to ${planClearLimit} day${planClearLimit === 1 ? '' : 's'}`}
-                  </span>
-                }
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={-1}
-                    max={365}
-                    value={clearIntervalDays}
-                    onChange={(event) =>
-                      setClearIntervalDays(Number(event.target.value) || 0)
-                    }
-                    disabled={
-                      isSettingsLoading || isSavingSettings || isFreePlan
-                    }
-                    className="w-12 rounded-md border border-gray-300 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 text-right"
-                  />
-                </div>
-              </SettingRow>
-
-              <SettingRow
-                label="Email reports"
-                helper={
-                  !planAllowsEmailReports || isFreePlan ? (
-                    <span className="text-xs text-amber-600">
-                      Not available on your plan
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-500">
-                      Plan:{' '}
-                      {features.emailReportsEnabled
-                        ? 'Included'
-                        : 'Not included'}
-                    </span>
-                  )
-                }
-              >
-                <label className="inline-flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
-                    checked={emailReportsEnabled && planAllowsEmailReports}
-                    disabled={
-                      !planAllowsEmailReports ||
-                      isSettingsLoading ||
-                      isSavingSettings ||
-                      isFreePlan
-                    }
-                    onChange={(event) =>
-                      setEmailReportsEnabled(event.target.checked)
-                    }
-                  />
-                </label>
-              </SettingRow>
-
-              {/* TODO: Add email interval setting */}
-              {/* <SettingRow label="Email interval">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={emailIntervalDays}
-                    onChange={(event) =>
-                      setEmailIntervalDays(
-                        Math.max(1, Number(event.target.value) || 1)
-                      )
-                    }
-                    disabled={
-                      isSettingsLoading ||
-                      isSavingSettings ||
-                      !planAllowsEmailReports ||
-                      !emailReportsEnabled ||
-                      isFreePlan
-                    }
-                    className="w-20 rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 text-right"
-                  />
-                </div>
-              </SettingRow> */}
-            </div>
-          </div>
-
-          <button
-            onClick={handleSettingsSubmit}
-            disabled={isSettingsLoading || isSavingSettings || isFreePlan}
-            className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
-          >
-            {isSavingSettings ? 'Saving...' : 'Save settings'}
-          </button>
-        </div>
-      </div>
+      <AccountPlanCard
+        profile={profile}
+        planLabel={planLabel}
+        deviceLimitText={deviceLimitText}
+        devicesCount={devices.length}
+        planClearLimit={planClearLimit}
+        clearIntervalDays={clearIntervalDays}
+        setClearIntervalDays={setClearIntervalDays}
+        emailReportsEnabled={emailReportsEnabled}
+        setEmailReportsEnabled={setEmailReportsEnabled}
+        planAllowsEmailReports={planAllowsEmailReports}
+        reportType={features.reportType}
+        planEmailReportsIncluded={features.emailReportsEnabled}
+        isSettingsLoading={isSettingsLoading}
+        isSavingSettings={isSavingSettings}
+        isFreePlan={isFreePlan}
+        onSaveSettings={handleSettingsSubmit}
+      />
 
       <div className="grid gap-6 mb-8">
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 space-y-4">
@@ -363,6 +223,162 @@ function SettingRow({
           {children}
         </div>
       </div>
+    </div>
+  );
+}
+
+interface AccountPlanCardProps {
+  profile:
+    | {
+        username?: string | null;
+        email?: string | null;
+        timezone?: string | null;
+      }
+    | null
+    | undefined;
+  planLabel: string;
+  deviceLimitText: string;
+  devicesCount: number;
+  planClearLimit: number;
+  clearIntervalDays: number;
+  setClearIntervalDays: (value: number) => void;
+  emailReportsEnabled: boolean;
+  setEmailReportsEnabled: (value: boolean) => void;
+  planAllowsEmailReports: boolean;
+  reportType: string;
+  planEmailReportsIncluded: boolean;
+  isSettingsLoading: boolean;
+  isSavingSettings: boolean;
+  isFreePlan: boolean;
+  onSaveSettings: () => Promise<void>;
+}
+
+function AccountPlanCard({
+  profile,
+  planLabel,
+  deviceLimitText,
+  devicesCount,
+  planClearLimit,
+  clearIntervalDays,
+  setClearIntervalDays,
+  emailReportsEnabled,
+  setEmailReportsEnabled,
+  planAllowsEmailReports,
+  reportType,
+  planEmailReportsIncluded,
+  isSettingsLoading,
+  isSavingSettings,
+  isFreePlan,
+  onSaveSettings,
+}: AccountPlanCardProps) {
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6 mb-8">
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Account</h2>
+          <div className="space-y-1 text-sm text-gray-700">
+            <SettingRow label="Name">
+              <span className="font-medium text-gray-900">
+                {profile?.username ?? 'Unknown user'}
+              </span>
+            </SettingRow>
+            <SettingRow label="Email">
+              <span className="font-medium text-gray-900">
+                {profile?.email ?? '—'}
+              </span>
+            </SettingRow>
+            <SettingRow label="Timezone">
+              <span className="font-medium text-gray-900">
+                {profile?.timezone ?? 'UTC'}
+              </span>
+            </SettingRow>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Plan</h2>
+          <p className="text-2xl font-bold text-indigo-900">{planLabel}</p>
+          <p className="text-sm text-gray-600 mb-4">{deviceLimitText}</p>
+          <div className="space-y-0 text-sm text-gray-700">
+            <SettingRow label="Devices connected">
+              <span className="font-medium text-gray-900">{devicesCount}</span>
+            </SettingRow>
+
+            <SettingRow label="Report detail">
+              <span className="font-medium text-gray-900">
+                {reportType === 'per_process' ? 'Per process' : 'Total only'}
+              </span>
+            </SettingRow>
+
+            <SettingRow
+              label="Clear interval (days)"
+              helper={
+                <span className="text-xs text-gray-500">
+                  Plan limit:{' '}
+                  {planClearLimit <= 0
+                    ? 'Never automatically cleared'
+                    : `Up to ${planClearLimit} day${planClearLimit === 1 ? '' : 's'}`}
+                </span>
+              }
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={-1}
+                  max={365}
+                  value={clearIntervalDays}
+                  onChange={(event) =>
+                    setClearIntervalDays(Number(event.target.value) || 0)
+                  }
+                  disabled={isSettingsLoading || isSavingSettings || isFreePlan}
+                  className="w-12 rounded-md border border-gray-300 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-gray-100 text-right"
+                />
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              label="Email reports"
+              helper={
+                !planAllowsEmailReports || isFreePlan ? (
+                  <span className="text-xs text-amber-600">
+                    Not available on your plan
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    Plan:{' '}
+                    {planEmailReportsIncluded ? 'Included' : 'Not included'}
+                  </span>
+                )
+              }
+            >
+              <label className="inline-flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                  checked={emailReportsEnabled && planAllowsEmailReports}
+                  disabled={
+                    !planAllowsEmailReports ||
+                    isSettingsLoading ||
+                    isSavingSettings ||
+                    isFreePlan
+                  }
+                  onChange={(event) =>
+                    setEmailReportsEnabled(event.target.checked)
+                  }
+                />
+              </label>
+            </SettingRow>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={onSaveSettings}
+        disabled={isSettingsLoading || isSavingSettings || isFreePlan}
+        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
+      >
+        {isSavingSettings ? 'Saving...' : 'Save settings'}
+      </button>
     </div>
   );
 }

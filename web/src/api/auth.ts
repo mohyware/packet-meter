@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { getUserTimezone } from '../utils/timezone'
 
 export interface UserSettings {
     clearReportsInterval: number
@@ -48,17 +49,6 @@ export interface UserInfo {
     user?: UserProfile
     features?: PlanFeatures
     settings?: UserSettings
-}
-
-/**
- * Get user's timezone from browser
- */
-function getUserTimezone(): string {
-    try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone
-    } catch {
-        return 'UTC'
-    }
 }
 
 export const authApi = {

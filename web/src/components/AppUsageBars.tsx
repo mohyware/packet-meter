@@ -186,12 +186,14 @@ export function AppUsageBars() {
             ? 'App Usage - All Reports'
             : `App Usage - ${new Date(report.timestamp).toLocaleString()}`}
         </h3>
-        <button
-          onClick={handleReset}
-          className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-        >
-          Reset
-        </button>
+        {report.id !== 'all-reports' && (
+          <button
+            onClick={handleReset}
+            className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+          >
+            Back to all reports
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-6 pb-4 border-b border-gray-200">

@@ -417,6 +417,11 @@ async function main() {
     const { tier, dummyData } = parseCliOptions();
     await seedTier(tier, dummyData);
     console.log('\nSeeding complete.');
+
+    if (db.$client) {
+        await db.$client.end();
+        console.log('Database connection closed.');
+    }
 }
 
 main().catch((error) => {
