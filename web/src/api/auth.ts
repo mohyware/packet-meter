@@ -9,7 +9,7 @@ export interface UserSettings {
     updatedAt?: string
 }
 
-export interface GoogleAuthResponse {
+export interface AuthResponse {
     success: boolean
     message: string
     user?: {
@@ -55,11 +55,26 @@ export const authApi = {
     /**
      * Authenticate with Google OAuth 
      */
-    loginWithGoogle: async (idToken: string): Promise<GoogleAuthResponse> => {
+    loginWithGoogle: async (idToken: string): Promise<AuthResponse> => {
         const timezone = getUserTimezone()
-        const { data } = await apiClient.post<GoogleAuthResponse>(
+        const { data } = await apiClient.post<AuthResponse>(
             '/api/v1/auth/google',
             { token: idToken, timezone }
+        )
+        return data
+    },
+
+    /**
+     * Authenticate with username/password
+     */
+    loginWithCredentials: async (input: {
+        email: string
+        password: string
+    }): Promise<AuthResponse> => {
+        const timezone = getUserTimezone()
+        const { data } = await apiClient.post<AuthResponse>(
+            '/api/v1/auth/login',
+            { ...input, timezone }
         )
         return data
     },

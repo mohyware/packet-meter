@@ -32,23 +32,34 @@ export const useAuth = () => {
         }
     }, [error])
 
+    const handleLoginSuccess = async () => {
+        await queryClient.invalidateQueries({ queryKey: ['auth'] })
+        toast.success('Login successful!')
+        navigate('/dashboard')
+    }
+
+    const handleLoginError = (error: AxiosError) => {
+        if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+            toast.error('Cannot connect to server. Please check your connection.')
+        } else {
+            const errorData = error.response?.data as { message?: string } | undefined
+            const errorMessage = errorData?.message ?? 'Login failed. Please try again.'
+            toast.error(errorMessage)
+        }
+    }
+
     // Login with Google mutation
     const loginMutation = useMutation({
         mutationFn: authApi.loginWithGoogle,
-        onSuccess: async () => {
-            await queryClient.invalidateQueries({ queryKey: ['auth'] })
-            toast.success('Login successful!')
-            navigate('/dashboard')
-        },
-        onError: (error: AxiosError) => {
-            if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
-                toast.error('Cannot connect to server. Please check your connection.')
-            } else {
-                const errorData = error.response?.data as { message?: string } | undefined
-                const errorMessage = errorData?.message ?? 'Login failed. Please try again.'
-                toast.error(errorMessage)
-            }
-        },
+        onSuccess: handleLoginSuccess,
+        onError: handleLoginError,
+    })
+
+    // Classic login mutation
+    const loginWithCredentialsMutation = useMutation({
+        mutationFn: authApi.loginWithCredentials,
+        onSuccess: handleLoginSuccess,
+        onError: handleLoginError,
     })
 
     // Logout mutation
@@ -83,8 +94,13 @@ export const useAuth = () => {
         login: loginMutation.mutate,
         loginAsync: loginMutation.mutateAsync,
         loginMutation,
+        loginWithCredentials: loginWithCredentialsMutation.mutate,
+        loginWithCredentialsAsync: loginWithCredentialsMutation.mutateAsync,
+        loginWithCredentialsMutation,
         logout: logoutMutation.mutate,
-        isLoggingIn: loginMutation.isPending,
+        isLoggingIn: loginMutation.isPending || loginWithCredentialsMutation.isPending,
+        isGoogleLoggingIn: loginMutation.isPending,
+        isClassicLoggingIn: loginWithCredentialsMutation.isPending,
         isLoggingOut: logoutMutation.isPending,
     }
 }

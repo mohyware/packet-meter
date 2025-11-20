@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { FormEvent, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { GoogleLogin } from '@react-oauth/google';
 import toast from 'react-hot-toast';
@@ -6,12 +6,39 @@ import { useAuth } from '../hooks/useAuth';
 
 export default function Header() {
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const { loginAsync, isAuthenticated, user, logout, features } = useAuth();
+  const [classicEmail, setClassicEmail] = useState('');
+  const [classicPassword, setClassicPassword] = useState('');
+  const {
+    loginAsync,
+    loginWithCredentialsAsync,
+    isAuthenticated,
+    user,
+    logout,
+    features,
+    isClassicLoggingIn,
+  } = useAuth();
   const location = useLocation();
   const isDashboardRoute =
     location.pathname.startsWith('/dashboard') ||
     location.pathname.startsWith('/devices') ||
     location.pathname.startsWith('/settings');
+  const joinMethodRaw =
+    typeof import.meta.env.VITE_JOIN_METHOD === 'string'
+      ? import.meta.env.VITE_JOIN_METHOD
+      : undefined;
+  const isGoogleJoin = (joinMethodRaw ?? 'google').toLowerCase() === 'google';
+
+  async function handleClassicLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const email = classicEmail.trim();
+    const password = classicPassword;
+
+    if (!email || !password) {
+      toast.error('Please enter both email and password.');
+      return;
+    }
+    await loginWithCredentialsAsync({ email, password });
+  }
 
   if (isAuthenticated) {
     return (
@@ -118,23 +145,56 @@ export default function Header() {
           PacketPilot
         </Link>
         <nav className="flex items-center gap-6">
-          <GoogleLogin
-            onSuccess={(credentialResponse) => {
-              if (credentialResponse.credential) {
-                loginAsync(credentialResponse.credential).catch(() => {
-                  // Error is already handled in the mutation's onError
-                });
-              }
-            }}
-            onError={() => {
-              toast.error('Google login failed. Please try again.');
-            }}
-            useOneTap
-            theme="outline"
-            size="large"
-            text="signin_with"
-            shape="rectangular"
-          />
+          {!isGoogleJoin ? (
+            <form
+              onSubmit={handleClassicLogin}
+              className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"
+            >
+              <input
+                type="email"
+                value={classicEmail}
+                onChange={(event) => setClassicEmail(event.target.value)}
+                placeholder="Email"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                autoComplete="email"
+                disabled={isClassicLoggingIn}
+              />
+              <input
+                type="password"
+                value={classicPassword}
+                onChange={(event) => setClassicPassword(event.target.value)}
+                placeholder="Password"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                autoComplete="current-password"
+                disabled={isClassicLoggingIn}
+              />
+              <button
+                type="submit"
+                disabled={isClassicLoggingIn}
+                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-60"
+              >
+                {isClassicLoggingIn ? 'Logging in...' : 'Login'}
+              </button>
+            </form>
+          ) : (
+            <GoogleLogin
+              onSuccess={(credentialResponse) => {
+                if (credentialResponse.credential) {
+                  loginAsync(credentialResponse.credential).catch(() => {
+                    // Error is already handled in the mutation's onError
+                  });
+                }
+              }}
+              onError={() => {
+                toast.error('Google login failed. Please try again.');
+              }}
+              useOneTap
+              theme="outline"
+              size="large"
+              text="signin_with"
+              shape="rectangular"
+            />
+          )}
         </nav>
       </div>
     </header>

@@ -2,8 +2,8 @@ import { Router, Request, Response } from 'express';
 import * as userService from '../services/user.service';
 import { requireAuth } from '../middleware/auth';
 import { requirePlanFeatures } from '../middleware/subscription';
-import { registerSchema, loginSchema, googleAuthSchema } from './validation';
-import { hasErrorMessage, getErrorMessage } from '../utils/errors';
+import { loginSchema, googleAuthSchema } from './validation';
+import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
 
 const router = Router();
@@ -12,43 +12,44 @@ const router = Router();
  * POST /api/v1/auth/register
  * Register a new user
  */
-router.post('/register', async (req: Request, res: Response) => {
-  try {
-    const parse = registerSchema.safeParse(req.body);
-    if (!parse.success) {
-      return res.status(400).json({
-        success: false,
-        message: 'invalid payload',
-        error: parse.error.flatten(),
-      });
-    }
+// TODO: Disable registration for now
+// router.post('/register', async (req: Request, res: Response) => {
+//   try {
+//     const parse = registerSchema.safeParse(req.body);
+//     if (!parse.success) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'invalid payload',
+//         error: parse.error.flatten(),
+//       });
+//     }
 
-    const user = await userService.registerUser(parse.data);
+//     const user = await userService.registerUser(parse.data);
 
-    // Store userId in session
-    req.session.userId = user.id;
+//     // Store userId in session
+//     req.session.userId = user.id;
 
-    return res.json({
-      success: true,
-      message: 'user created',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-      },
-    });
-  } catch (error: unknown) {
-    if (hasErrorMessage(error, 'Username or email already exists')) {
-      return res
-        .status(409)
-        .json({ success: false, message: getErrorMessage(error) });
-    }
-    logger.error('Registration error:', error);
-    return res
-      .status(500)
-      .json({ success: false, message: 'internal server error' });
-  }
-});
+//     return res.json({
+//       success: true,
+//       message: 'user created',
+//       user: {
+//         id: user.id,
+//         username: user.username,
+//         email: user.email,
+//       },
+//     });
+//   } catch (error: unknown) {
+//     if (hasErrorMessage(error, 'Username or email already exists')) {
+//       return res
+//         .status(409)
+//         .json({ success: false, message: getErrorMessage(error) });
+//     }
+//     logger.error('Registration error:', error);
+//     return res
+//       .status(500)
+//       .json({ success: false, message: 'internal server error' });
+//   }
+// });
 
 /**
  * POST /api/v1/auth/login

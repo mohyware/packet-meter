@@ -23,7 +23,7 @@ export interface RegisterInput {
 }
 
 export interface LoginInput {
-  username: string;
+  email: string;
   password: string;
   timezone?: string;
 }
@@ -70,7 +70,7 @@ export async function verifyUser(
   input: LoginInput
 ): Promise<typeof users.$inferSelect | null> {
   const user = await db.query.users.findFirst({
-    where: eq(users.username, input.username),
+    where: eq(users.email, input.email),
   });
 
   if (!user) {
