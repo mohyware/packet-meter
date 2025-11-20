@@ -1,4 +1,11 @@
-import { PORT, SESSION_SECRET, DATABASE_URL, NODE_ENV } from './config/env';
+import {
+  PORT,
+  SESSION_SECRET,
+  DATABASE_URL,
+  NODE_ENV,
+  EMAIL_SCHEDULE,
+  REPORT_CLEANUP_SCHEDULE,
+} from './config/env';
 import express, { NextFunction, Request, Response } from 'express';
 import morgan from 'morgan';
 import session from 'express-session';
@@ -19,7 +26,8 @@ import emailRoutes from './routes/email.routes';
 import settingsRoutes from './routes/settings.routes';
 
 // Import services
-// import { startEmailScheduler } from './services/email-scheduler.service';
+import { startEmailScheduler } from './services/email-scheduler.service';
+import { startReportCleanerScheduler } from './services/report-cleaner.service';
 
 const app = express();
 
@@ -97,11 +105,17 @@ app.listen(PORT, '0.0.0.0', () => {
   logger.info(`Environment: ${NODE_ENV}`);
   logger.info(`Database: ${DATABASE_URL ? 'connected' : 'not configured'}`);
 
-  // Start email scheduler if enabled
-  // const emailSchedule = process.env.EMAIL_SCHEDULE;
-  // if (emailSchedule !== 'disabled') {
-  //   startEmailScheduler(emailSchedule);
-  // } else {
-  //   logger.info('Email scheduler is disabled');
-  // }
+  const emailSchedule = EMAIL_SCHEDULE;
+  if (emailSchedule !== 'disabled') {
+    startEmailScheduler(emailSchedule);
+  } else {
+    logger.info('Email scheduler is disabled');
+  }
+
+  const reportCleanupSchedule = REPORT_CLEANUP_SCHEDULE;
+  if (reportCleanupSchedule !== 'disabled') {
+    startReportCleanerScheduler(reportCleanupSchedule);
+  } else {
+    logger.info('Report cleanup scheduler is disabled');
+  }
 });

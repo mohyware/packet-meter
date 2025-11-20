@@ -7,6 +7,7 @@ import { and, eq, desc } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { bytesToMB, formatMB } from '../utils/utils';
+import { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD } from '../config/env';
 
 interface DeviceStats {
   deviceId: string;
@@ -17,6 +18,7 @@ interface DeviceStats {
   totalRxMB: number;
   totalTxMB: number;
   totalCombinedMB: number;
+  usagePercentage: number;
 }
 
 interface UserEmailData {
@@ -32,12 +34,7 @@ interface UserEmailData {
  */
 // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
 function createTransporter(): Transporter | null {
-  const smtpHost = process.env.SMTP_HOST;
-  const smtpPort = parseInt(process.env.SMTP_PORT ?? '587', 10);
-  const smtpUser = process.env.SMTP_USER;
-  const smtpPassword = process.env.SMTP_PASSWORD;
-
-  if (!smtpHost || !smtpUser || !smtpPassword) {
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASSWORD) {
     logger.warn(
       'SMTP configuration incomplete. Email sending will be disabled.'
     );
@@ -46,12 +43,12 @@ function createTransporter(): Transporter | null {
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   return nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpPort === 465,
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT),
+    secure: Number(SMTP_PORT) === 465,
     auth: {
-      user: smtpUser,
-      pass: smtpPassword,
+      user: SMTP_USER,
+      pass: SMTP_PASSWORD,
     },
   });
 }
@@ -69,7 +66,7 @@ async function getDeviceStatsForUser(
     orderBy: desc(devices.createdAt),
   });
 
-  const deviceStats: DeviceStats[] = [];
+  const deviceStats: Omit<DeviceStats, 'usagePercentage'>[] = [];
 
   for (const device of userDevices) {
     const deviceWithUsage = await deviceService.getDeviceWithUsage(device.id);
@@ -103,7 +100,20 @@ async function getDeviceStatsForUser(
     });
   }
 
-  return deviceStats;
+  const totalUsage =
+    deviceStats.reduce((sum, stat) => sum + stat.totalCombinedMB, 0) || 0;
+
+  if (totalUsage === 0) {
+    return deviceStats.map((stat) => ({
+      ...stat,
+      usagePercentage: 0,
+    }));
+  }
+
+  return deviceStats.map((stat) => ({
+    ...stat,
+    usagePercentage: (stat.totalCombinedMB / totalUsage) * 100,
+  }));
 }
 
 /**
@@ -127,9 +137,6 @@ function generateEmailHTML(userData: UserEmailData): string {
         <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
           Status: <strong style="color: ${device.isActivated ? '#10b981' : '#ef4444'}">${device.isActivated ? 'Active' : 'Inactive'}</strong>
         </p>
-        <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
-          Total Reports: <strong>${device.totalReports}</strong>
-        </p>
         ${device.lastReportDate ? `<p style="margin: 5px 0; color: #6b7280; font-size: 14px;">Last Report: <strong>${format(toZonedTime(device.lastReportDate, timezone), 'MMM d, yyyy HH:mm')}</strong></p>` : ''}
         <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb;">
           <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
@@ -140,6 +147,9 @@ function generateEmailHTML(userData: UserEmailData): string {
           </p>
           <p style="margin: 5px 0; color: #1f2937; font-size: 16px; font-weight: bold;">
             Total: <strong>${formatMB(device.totalCombinedMB)}</strong>
+          </p>
+          <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
+            Share of total usage: <strong>${device.usagePercentage.toFixed(1)}%</strong>
           </p>
         </div>
       </div>
@@ -189,14 +199,10 @@ export async function sendDeviceStatsEmail(
 
   try {
     const htmlContent = generateEmailHTML(userData);
-    const smtpFrom =
-      process.env.SMTP_FROM ??
-      process.env.SMTP_USER ??
-      'noreply@packetpilot.com';
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     await transporter.sendMail({
-      from: smtpFrom,
+      from: SMTP_USER,
       to: userData.email,
       subject: 'PacketPilot - Your Device Statistics Report',
       html: htmlContent,
@@ -246,11 +252,6 @@ export async function getUsersWithEmailReportsEnabled(): Promise<
     if (!emailReportsEnabledForUser) {
       continue;
     }
-
-    // TODO: Implement shouldSendEmailToday or find a way to handle when mail interval is more than one day
-    // if (!shouldSendEmailToday(userSettings?.emailInterval)) {
-    //     continue;
-    // }
 
     const lookbackDays =
       userSettings?.emailInterval ??

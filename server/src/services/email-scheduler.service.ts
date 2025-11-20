@@ -1,12 +1,12 @@
-import cron from 'node-cron';
+import type { ScheduledTask } from 'node-cron';
+import * as cron from 'node-cron';
 import logger from '../utils/logger';
 import { sendDeviceStatsEmailsToAllUsers } from './email.service';
 
-let emailJob: cron.ScheduledTask | null = null;
+let emailJob: ScheduledTask | null = null;
 
 /**
  * Start the email scheduler
- * By default, sends emails daily at 9 AM UTC
  */
 export function startEmailScheduler(cronExpression?: string): void {
   // Default: Daily at 9 AM UTC
