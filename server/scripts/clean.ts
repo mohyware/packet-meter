@@ -1,4 +1,12 @@
-import { db, users, devices, reports, apps } from '../src/db/index.js';
+import {
+    db,
+    users,
+    devices,
+    reports,
+    apps,
+    plans,
+    subscriptions,
+} from '../src/db/index.js';
 import { eq, inArray } from 'drizzle-orm';
 
 /**
@@ -66,6 +74,24 @@ async function deleteDummyData() {
         console.log(`   - Deleted devices: ${userDevices.length} (cascaded)`);
         console.log(`   - Deleted apps: ${appCount} (cascaded)`);
         console.log(`   - Deleted reports: ${reportCount} (cascaded)`);
+
+        const premiumPlan = await db.query.plans.findFirst({
+            where: eq(plans.name, 'premium'),
+        });
+
+        if (premiumPlan && premiumPlan.description?.includes('insert-dummy-data')) {
+            const remainingSubs = await db
+                .select()
+                .from(subscriptions)
+                .where(eq(subscriptions.planId, premiumPlan.id));
+
+            if (remainingSubs.length === 0) {
+                await db.delete(plans).where(eq(plans.id, premiumPlan.id));
+                console.log('   - Deleted premium test plan created by dummy data script');
+            } else {
+                console.log('   - Premium plan still referenced, skipping plan deletion');
+            }
+        }
     } catch (error) {
         console.error('Error deleting dummy data:', error);
         throw error;

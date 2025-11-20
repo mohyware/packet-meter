@@ -15,6 +15,11 @@ import deviceRoutes from './routes/device.routes';
 import deviceHealthRoutes from './routes/device-health.routes';
 import trafficRoutes from './routes/traffic.routes';
 import healthRoutes from './routes/health.routes';
+import emailRoutes from './routes/email.routes';
+import settingsRoutes from './routes/settings.routes';
+
+// Import services
+// import { startEmailScheduler } from './services/email-scheduler.service';
 
 const app = express();
 
@@ -33,7 +38,6 @@ app.use(
 
 // Middleware
 app.use(express.json({ limit: '10mb' }));
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
 app.use(compression());
 
 app.use(
@@ -80,6 +84,8 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/devices', deviceRoutes);
 app.use('/api/v1/device', deviceHealthRoutes);
 app.use('/api/v1/traffic', trafficRoutes);
+app.use('/api/v1/email', emailRoutes);
+app.use('/api/v1/settings', settingsRoutes);
 app.use('/health', healthRoutes);
 app.use((err: Error, req: Request, res: Response, _: NextFunction) => {
   logger.error(err.stack);
@@ -90,4 +96,12 @@ app.listen(PORT, '0.0.0.0', () => {
   logger.info(`PacketPilot server listening on :${PORT}`);
   logger.info(`Environment: ${NODE_ENV}`);
   logger.info(`Database: ${DATABASE_URL ? 'connected' : 'not configured'}`);
+
+  // Start email scheduler if enabled
+  // const emailSchedule = process.env.EMAIL_SCHEDULE;
+  // if (emailSchedule !== 'disabled') {
+  //   startEmailScheduler(emailSchedule);
+  // } else {
+  //   logger.info('Email scheduler is disabled');
+  // }
 });

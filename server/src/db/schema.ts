@@ -133,10 +133,10 @@ export const plans = pgTable('plans', {
 
   // Features & Limits
   maxDevices: integer('max_devices').default(3).notNull(),
-  clearReportsInterval: integer('clear_reports_interval').default(1).notNull(),
-  emailReportsEnabled: boolean('email_reports_enabled')
-    .default(false)
+  maxClearReportsInterval: integer('max_clear_reports_interval')
+    .default(1)
     .notNull(),
+  emailReportsEnabled: boolean('email_reports_enabled').default(true).notNull(),
   reportType: ReportTypeEnum().default('total').notNull(),
 
   // Display & Marketing
@@ -149,6 +149,30 @@ export const plans = pgTable('plans', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+export const settings = pgTable(
+  'settings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+
+    clearReportsInterval: integer('clear_reports_interval')
+      .default(1)
+      .notNull(),
+    emailReportsEnabled: boolean('email_reports_enabled')
+      .default(true)
+      .notNull(),
+    emailInterval: integer('email_interval').default(1).notNull(),
+
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userUnique: uniqueIndex('settings_user_id_idx').on(table.userId),
+  })
+);
 
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -188,9 +212,13 @@ export const subscriptions = pgTable('subscriptions', {
 });
 
 // --- Relations ---
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   devices: many(devices),
   subscriptions: many(subscriptions),
+  settings: one(settings, {
+    fields: [users.id],
+    references: [settings.userId],
+  }),
 }));
 
 export const devicesRelations = relations(devices, ({ one, many }) => ({
@@ -232,6 +260,13 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   }),
 }));
 
+export const settingsRelations = relations(settings, ({ one }) => ({
+  user: one(users, {
+    fields: [settings.userId],
+    references: [users.id],
+  }),
+}));
+
 // --- Type exports ---
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -263,3 +298,6 @@ export type SubscriptionWithDetails = Subscription & {
   user: User;
   plan: Plan;
 };
+
+export type Setting = typeof settings.$inferSelect;
+export type NewSetting = typeof settings.$inferInsert;

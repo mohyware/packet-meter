@@ -53,3 +53,26 @@ export const dailyUsageReportSchema = z.object({
   Date: z.string(),
   Apps: z.array(appUsageSchema),
 });
+
+export const totalUsageReportSchema = z.object({
+  Timestamp: z.string(),
+  Date: z.string(),
+  TotalRx: z.number().nonnegative(),
+  TotalTx: z.number().nonnegative(),
+});
+
+export const updateSettingsSchema = z
+  .object({
+    clearReportsInterval: z.number().int().min(-1).max(365).optional(),
+    emailReportsEnabled: z.boolean().optional(),
+    emailInterval: z.number().int().min(1).max(30).optional(),
+  })
+  .refine(
+    (data) =>
+      data.clearReportsInterval !== undefined ||
+      data.emailReportsEnabled !== undefined ||
+      data.emailInterval !== undefined,
+    {
+      message: 'At least one settings field must be provided',
+    }
+  );

@@ -5,6 +5,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { GOOGLE_CLIENT_ID } from '../config/env';
 import { getErrorMessage } from '../utils/errors';
 import logger from '../utils/logger';
+import { ensureSettingsForUser } from './settings.service';
 
 export interface UserInfoResponse {
   email: string;
@@ -51,6 +52,8 @@ export async function registerUser(input: RegisterInput) {
       timezone: input.timezone ?? 'UTC',
     })
     .returning();
+
+  await ensureSettingsForUser(newUser.id);
 
   return {
     id: newUser.id,
@@ -176,6 +179,7 @@ export async function loginOrRegisterWithGoogle(
       .returning();
 
     user = newUser;
+    await ensureSettingsForUser(user.id);
   } else {
     // If timezone is provided and user doesn't have one set (or is UTC), update it
     if (timezone && (user.timezone === 'UTC' || !user.timezone)) {
@@ -193,6 +197,8 @@ export async function loginOrRegisterWithGoogle(
       if (updatedUser) user = updatedUser;
     }
   }
+
+  await ensureSettingsForUser(user.id);
 
   return {
     id: user.id,

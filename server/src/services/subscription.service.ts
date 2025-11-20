@@ -1,10 +1,10 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { db, users, subscriptions, UserWithSubscription } from '../db';
-import { ReportTypeEnum } from '../db/enums';
+import { ReportTypeEnum } from '../db/schema';
 
 export interface PlanFeatures {
   maxDevices: number;
-  clearReportsInterval: number;
+  maxClearReportsInterval: number;
   emailReportsEnabled: boolean;
   reportType: (typeof ReportTypeEnum.enumValues)[number];
   planName: string;
@@ -12,7 +12,7 @@ export interface PlanFeatures {
 
 export const DEFAULT_PLAN_FEATURES: PlanFeatures = {
   maxDevices: 3,
-  clearReportsInterval: 1, // days
+  maxClearReportsInterval: 1,
   emailReportsEnabled: false,
   reportType: 'total',
   planName: 'free',
@@ -29,7 +29,7 @@ export function getUserPlanFeatures(user: UserWithSubscription): PlanFeatures {
 
   return {
     maxDevices: user.subscription.plan.maxDevices,
-    clearReportsInterval: user.subscription.plan.clearReportsInterval,
+    maxClearReportsInterval: user.subscription.plan.maxClearReportsInterval,
     emailReportsEnabled: user.subscription.plan.emailReportsEnabled,
     reportType: user.subscription.plan.reportType,
     planName: user.subscription.plan.name,

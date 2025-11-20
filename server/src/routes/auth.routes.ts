@@ -73,7 +73,6 @@ router.post('/login', async (req: Request, res: Response) => {
         .json({ success: false, message: 'invalid credentials' });
     }
 
-    // Store userId in session
     req.session.userId = user.id;
 
     return res.json({

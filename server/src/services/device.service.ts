@@ -387,7 +387,7 @@ export async function deleteDevice(deviceId: string) {
  * Create or update usage reports (one per app per UTC hour)
  * Stores reports grouped by UTC hour, with one record per app per hour
  */
-export async function createUsageReport(data: {
+export async function createOrUpdateUsageReport(data: {
   deviceId: string;
   timestamp: Date;
   apps: {

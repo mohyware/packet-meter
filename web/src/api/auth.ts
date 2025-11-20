@@ -1,5 +1,13 @@
 import { apiClient } from './client'
 
+export interface UserSettings {
+    clearReportsInterval: number
+    emailReportsEnabled: boolean
+    emailInterval: number
+    createdAt?: string
+    updatedAt?: string
+}
+
 export interface GoogleAuthResponse {
     success: boolean
     message: string
@@ -13,6 +21,7 @@ export interface GoogleAuthResponse {
 export interface PlanFeatures {
     maxDevices: number
     clearReportsInterval: number
+    maxClearReportsInterval?: number
     emailReportsEnabled: boolean
     reportType: 'total' | 'per_process'
     planName: string
@@ -21,6 +30,7 @@ export interface PlanFeatures {
 export const DEFAULT_PLAN_FEATURES: PlanFeatures = {
     maxDevices: 3,
     clearReportsInterval: 1,
+    maxClearReportsInterval: 1,
     emailReportsEnabled: false,
     reportType: 'total',
     planName: 'free',
@@ -37,6 +47,7 @@ export interface UserInfo {
     success: boolean
     user?: UserProfile
     features?: PlanFeatures
+    settings?: UserSettings
 }
 
 /**

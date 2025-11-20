@@ -1,5 +1,18 @@
-export function bytesToMB(bytes: number): number {
+export function bytesToMB(bytes: number | string): number {
+  if (typeof bytes === 'string') {
+    bytes = parseFloat(bytes);
+  }
   return bytes / (1024 * 1024);
+}
+
+/**
+ * Format MB to readable string
+ */
+export function formatMB(mb: number): string {
+  if (mb >= 1024) {
+    return `${(mb / 1024).toFixed(2)} GB`;
+  }
+  return `${mb.toFixed(2)} MB`;
 }
 
 export type DeviceType = 'windows' | 'android' | 'linux' | 'unknown';
