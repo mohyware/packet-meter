@@ -251,12 +251,14 @@ namespace PacketPilot.Daemon.Win.Reporter
             };
 
             var jsonData = JsonSerializer.Serialize(appsPayload);
-            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Post, url);
-                request.Content = content;
+                using var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                using var request = new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = content
+                };
                 request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
                 request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
@@ -283,7 +285,6 @@ namespace PacketPilot.Daemon.Win.Reporter
         private async Task SendPerProcessReportRequest(UsageReportRequest usageReport, string date, int appsCount, long totalRx, long totalTx)
         {
             var jsonData = JsonSerializer.Serialize(usageReport);
-            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
             var protocol = _config.UseTls ? "https" : "http";
             var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/traffic/per-process";
@@ -293,8 +294,11 @@ namespace PacketPilot.Daemon.Win.Reporter
             {
                 try
                 {
-                    using var request = new HttpRequestMessage(HttpMethod.Post, url);
-                    request.Content = content;
+                    using var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                    using var request = new HttpRequestMessage(HttpMethod.Post, url)
+                    {
+                        Content = content
+                    };
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
                     request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
@@ -365,7 +369,6 @@ namespace PacketPilot.Daemon.Win.Reporter
         private async Task SendTotalUsageReportRequest(TotalUsageReportRequest totalUsageReport, string date, long totalRx, long totalTx)
         {
             var jsonData = JsonSerializer.Serialize(totalUsageReport);
-            var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
 
             var protocol = _config.UseTls ? "https" : "http";
             var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/traffic/total-usage";
@@ -375,8 +378,11 @@ namespace PacketPilot.Daemon.Win.Reporter
             {
                 try
                 {
-                    using var request = new HttpRequestMessage(HttpMethod.Post, url);
-                    request.Content = content;
+                    using var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                    using var request = new HttpRequestMessage(HttpMethod.Post, url)
+                    {
+                        Content = content
+                    };
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
                     request.Headers.Add("User-Agent", "PacketPilot-Windows-Daemon/1.0");
 
