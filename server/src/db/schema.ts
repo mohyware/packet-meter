@@ -1,273 +1,43 @@
-import {
-  pgTable,
-  uuid,
-  varchar,
-  text,
-  timestamp,
-  boolean,
-  numeric,
-  integer,
-  unique,
-  index,
-  uniqueIndex,
-  pgEnum,
-} from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { DB_CLIENT } from '../config/env';
+import * as postgresSchema from './schema.postgres';
+import * as sqliteSchema from './schema.lite';
 
-// --- Enums ---
-export const SubscriptionPlanEnum = pgEnum('subscription_plan', [
-  'pro',
-  'premium',
-]);
+const isSQLite = DB_CLIENT !== 'postgres';
 
-export const RenewalPeriodEnum = pgEnum('renewal_period', [
-  'monthly',
-  'yearly',
-]);
+const schema = (
+  isSQLite ? sqliteSchema : postgresSchema
+) as typeof postgresSchema;
 
-export const ReportTypeEnum = pgEnum('report_type', ['total', 'per_process']);
+interface EnumLike {
+  enumValues: readonly string[];
+}
 
-export const SubscriptionStatusEnum = pgEnum('subscription_status', [
-  'trialing',
-  'active',
-  'past_due',
-  'canceled',
-]);
+const reportTypeEnum: EnumLike =
+  isSQLite && 'REPORT_TYPES' in sqliteSchema
+    ? { enumValues: sqliteSchema.REPORT_TYPES }
+    : 'ReportTypeEnum' in postgresSchema
+      ? postgresSchema.ReportTypeEnum
+      : { enumValues: ['total', 'per_process'] };
 
-export const DeviceTypeEnum = pgEnum('device_type', [
-  'unknown',
-  'android',
-  'ios',
-  'windows',
-  'macos',
-  'linux',
-]);
+export { schema, isSQLite };
 
-// --- Tables ---
-// Usage reports table
-// One report per device per app per UTC hour
-export const reports = pgTable(
-  'reports',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    deviceId: uuid('device_id')
-      .references(() => devices.id, { onDelete: 'cascade' })
-      .notNull(),
+export const reports = schema.reports;
+export const apps = schema.apps;
+export const users = schema.users;
+export const devices = schema.devices;
+export const plans = schema.plans;
+export const settings = schema.settings;
+export const subscriptions = schema.subscriptions;
 
-    appId: uuid('app_id')
-      .references(() => apps.id, { onDelete: 'cascade' })
-      .notNull(),
+export const usersRelations = schema.usersRelations;
+export const devicesRelations = schema.devicesRelations;
+export const appsRelations = schema.appsRelations;
+export const reportsRelations = schema.reportsRelations;
+export const subscriptionsRelations = schema.subscriptionsRelations;
+export const settingsRelations = schema.settingsRelations;
 
-    timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
-    totalRx: numeric('total_rx', { precision: 20, scale: 0 }).notNull(),
-    totalTx: numeric('total_tx', { precision: 20, scale: 0 }).notNull(),
+export const ReportTypeEnum = reportTypeEnum;
 
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    uniqueDeviceAppHour: unique().on(
-      table.deviceId,
-      table.appId,
-      table.timestamp
-    ),
-  })
-);
-
-export const apps = pgTable('apps', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  deviceId: uuid('device_id')
-    .references(() => devices.id, { onDelete: 'cascade' })
-    .notNull(),
-
-  // Unique identity of an app per device e.g. package name for Android, full exe path for Windows
-  identifier: varchar('identifier', { length: 300 }).notNull(),
-
-  displayName: varchar('display_name', { length: 255 }),
-  iconHash: text('icon_hash'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-export const users = pgTable(
-  'users',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    username: varchar('username', { length: 100 }).notNull(),
-    email: varchar('email', { length: 255 }).notNull().unique(),
-    passwordHash: varchar('password_hash', { length: 255 }).notNull(),
-    timezone: varchar('timezone', { length: 50 }).default('UTC').notNull(),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    emailIdx: uniqueIndex('users_email_idx').on(table.email),
-    usernameIdx: index('users_username_idx').on(table.username),
-  })
-);
-
-export const devices = pgTable('devices', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  userId: uuid('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-  name: varchar('name', { length: 255 }).notNull(),
-  deviceTokenHash: varchar('device_token_hash', { length: 255 }).notNull(),
-  deviceType: DeviceTypeEnum().default('unknown').notNull(),
-  isActivated: boolean('is_activated').default(false).notNull(),
-  lastHealthCheck: timestamp('last_health_check'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// TODO: Will handle subs and plans later
-export const plans = pgTable('plans', {
-  id: uuid('id').primaryKey().defaultRandom(),
-
-  // Plan identifiers
-  name: SubscriptionPlanEnum().notNull(),
-  renewalPeriod: RenewalPeriodEnum().notNull(),
-
-  priceCents: integer('price_cents').notNull(),
-
-  // Features & Limits
-  maxDevices: integer('max_devices').default(3).notNull(),
-  maxClearReportsInterval: integer('max_clear_reports_interval')
-    .default(1)
-    .notNull(),
-  emailReportsEnabled: boolean('email_reports_enabled').default(true).notNull(),
-  reportType: ReportTypeEnum().default('total').notNull(),
-
-  // Display & Marketing
-  displayName: varchar('display_name', { length: 100 }).notNull(),
-  description: text('description'),
-
-  // Can users subscribe?
-  isActive: boolean('is_active').default(true).notNull(),
-
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-export const settings = pgTable(
-  'settings',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    userId: uuid('user_id')
-      .references(() => users.id, { onDelete: 'cascade' })
-      .notNull(),
-
-    clearReportsInterval: integer('clear_reports_interval')
-      .default(1)
-      .notNull(),
-    emailReportsEnabled: boolean('email_reports_enabled')
-      .default(true)
-      .notNull(),
-    emailInterval: integer('email_interval').default(1).notNull(),
-
-    createdAt: timestamp('created_at').defaultNow().notNull(),
-    updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  },
-  (table) => ({
-    userUnique: uniqueIndex('settings_user_id_idx').on(table.userId),
-  })
-);
-
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-
-  // Relationships
-  userId: uuid('user_id')
-    .references(() => users.id, { onDelete: 'cascade' })
-    .notNull(),
-
-  planId: uuid('plan_id')
-    .references(() => plans.id, { onDelete: 'restrict' })
-    .notNull(),
-
-  // Subscription status
-  status: SubscriptionStatusEnum().default('trialing').notNull(),
-
-  // Lifecycle timestamps
-  startDate: timestamp('start_date').notNull(),
-  currentPeriodStart: timestamp('current_period_start').notNull(),
-  currentPeriodEnd: timestamp('current_period_end').notNull(),
-  endDate: timestamp('end_date'),
-  cancelledAt: timestamp('cancelled_at'),
-
-  // Renewal settings
-  willRenew: boolean('will_renew').default(true).notNull(),
-  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
-
-  // Payment provider integration
-  subscriptionId: varchar('subscription_id', { length: 255 }).unique(),
-  customerId: varchar('customer_id', { length: 255 }),
-
-  // Metadata
-  cancellationReason: text('cancellation_reason'),
-
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
-
-// --- Relations ---
-export const usersRelations = relations(users, ({ many, one }) => ({
-  devices: many(devices),
-  subscriptions: many(subscriptions),
-  settings: one(settings, {
-    fields: [users.id],
-    references: [settings.userId],
-  }),
-}));
-
-export const devicesRelations = relations(devices, ({ one, many }) => ({
-  user: one(users, {
-    fields: [devices.userId],
-    references: [users.id],
-  }),
-  reports: many(reports),
-  apps: many(apps),
-}));
-
-export const appsRelations = relations(apps, ({ one, many }) => ({
-  device: one(devices, {
-    fields: [apps.deviceId],
-    references: [devices.id],
-  }),
-  reports: many(reports),
-}));
-
-export const reportsRelations = relations(reports, ({ one }) => ({
-  device: one(devices, {
-    fields: [reports.deviceId],
-    references: [devices.id],
-  }),
-  app: one(apps, {
-    fields: [reports.appId],
-    references: [apps.id],
-  }),
-}));
-
-export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
-  user: one(users, {
-    fields: [subscriptions.userId],
-    references: [users.id],
-  }),
-  plan: one(plans, {
-    fields: [subscriptions.planId],
-    references: [plans.id],
-  }),
-}));
-
-export const settingsRelations = relations(settings, ({ one }) => ({
-  user: one(users, {
-    fields: [settings.userId],
-    references: [users.id],
-  }),
-}));
-
-// --- Type exports ---
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 
@@ -286,6 +56,9 @@ export type NewPlan = typeof plans.$inferInsert;
 export type Subscription = typeof subscriptions.$inferSelect;
 export type NewSubscription = typeof subscriptions.$inferInsert;
 
+export type Setting = typeof settings.$inferSelect;
+export type NewSetting = typeof settings.$inferInsert;
+
 export type UserWithSubscription = User & {
   subscription:
     | (Subscription & {
@@ -298,6 +71,3 @@ export type SubscriptionWithDetails = Subscription & {
   user: User;
   plan: Plan;
 };
-
-export type Setting = typeof settings.$inferSelect;
-export type NewSetting = typeof settings.$inferInsert;

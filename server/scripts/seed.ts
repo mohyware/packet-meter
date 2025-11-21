@@ -8,6 +8,7 @@ import {
     subscriptions,
     settings,
     User,
+    closeDb,
 } from '../src/db/index.js';
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
@@ -418,10 +419,8 @@ async function main() {
     await seedTier(tier, dummyData);
     console.log('\nSeeding complete.');
 
-    if (db.$client) {
-        await db.$client.end();
-        console.log('Database connection closed.');
-    }
+    await closeDb();
+    console.log('Database connection closed.');
 }
 
 main().catch((error) => {

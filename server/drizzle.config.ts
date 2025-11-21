@@ -3,12 +3,21 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
+const dbClient = (process.env.DB_CLIENT ?? 'sqlite').toLowerCase();
+const isSQLite = dbClient !== 'postgres';
+
 export default {
-  schema: './src/db/schema.ts',
+  schema: isSQLite
+    ? './src/db/schema.lite.ts'
+    : './src/db/schema.postgres.ts',
   out: './drizzle',
-  dialect: 'postgresql',
-  dbCredentials: {
-    url: process.env.DATABASE_URL || '',
-  },
+  dialect: isSQLite ? 'sqlite' : 'postgresql',
+  dbCredentials: isSQLite
+    ? {
+      url: 'file:./packetPilotDB.db',
+    }
+    : {
+      url: process.env.DATABASE_URL || '',
+    },
 } satisfies Config;
 

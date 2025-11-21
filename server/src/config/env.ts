@@ -18,7 +18,9 @@ export function requireEnv(key: string): string {
   return value;
 }
 
+export const DB_CLIENT = process.env.DB_CLIENT ?? 'sqlite';
 export const DATABASE_URL = requireEnv('DATABASE_URL');
+export const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN;
 export const SESSION_SECRET = process.env.SESSION_SECRET ?? 'super-secret';
 export const PORT = process.env.PACKETPILOT_SERVER_PORT
   ? parseInt(process.env.PACKETPILOT_SERVER_PORT, 10)

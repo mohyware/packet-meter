@@ -5,6 +5,7 @@ import {
   NODE_ENV,
   EMAIL_SCHEDULE,
   REPORT_CLEANUP_SCHEDULE,
+  DB_CLIENT,
 } from './config/env';
 import express, { NextFunction, Request, Response } from 'express';
 import morgan from 'morgan';
@@ -54,32 +55,36 @@ app.use(
   })
 );
 
-// Session configuration with PostgreSQL store
-const PgSession = connectPg(session);
-const pgPool = new Pool({
-  connectionString: DATABASE_URL,
-});
-const sessionStore = new PgSession({
-  pool: pgPool,
-  tableName: 'session',
-  createTableIfMissing: true,
-});
+const sessionOptions: session.SessionOptions = {
+  secret: SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
+    domain: NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
+  },
+};
 
-app.use(
-  session({
-    store: sessionStore,
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: NODE_ENV === 'production',
-      httpOnly: true,
-      sameSite: NODE_ENV === 'production' ? 'none' : 'lax',
-      domain: NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    },
-  })
-);
+if (DB_CLIENT === 'postgres') {
+  const PgSession = connectPg(session);
+  const pgPool = new Pool({
+    connectionString: DATABASE_URL,
+  });
+  sessionOptions.store = new PgSession({
+    pool: pgPool,
+    tableName: 'session',
+    createTableIfMissing: true,
+  });
+} else {
+  logger.warn(
+    'Using in-memory session store. Sessions will reset when the server restarts.'
+  );
+}
+
+app.use(session(sessionOptions));
 
 // Extend session interface
 declare module 'express-session' {
@@ -103,7 +108,9 @@ app.use((err: Error, req: Request, res: Response, _: NextFunction) => {
 app.listen(PORT, '0.0.0.0', () => {
   logger.info(`PacketPilot server listening on :${PORT}`);
   logger.info(`Environment: ${NODE_ENV}`);
-  logger.info(`Database: ${DATABASE_URL ? 'connected' : 'not configured'}`);
+  logger.info(
+    `Database: ${DATABASE_URL ? 'connected' + (DB_CLIENT !== 'postgres' ? ' (SQLite)' : ' (PostgreSQL)') : 'not configured'}`
+  );
 
   const emailSchedule = EMAIL_SCHEDULE;
   if (emailSchedule !== 'disabled') {
