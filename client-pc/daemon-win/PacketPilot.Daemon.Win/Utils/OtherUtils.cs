@@ -1,7 +1,27 @@
+using System;
+using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
+
 namespace PacketPilot.Daemon.Win.Utils
 {
     public static class UtilsHelper
     {
+        // Shared JsonSerializerOptions for .NET 9 with trimming support
+        // Using DefaultJsonTypeInfoResolver to enable reflection-based serialization
+        public static readonly JsonSerializerOptions JsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        };
+
+        public static readonly JsonSerializerOptions JsonOptionsIndented = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        };
         public static TimeSpan ParseTimeSpan(string value)
         {
             if (value.EndsWith("s"))

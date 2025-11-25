@@ -630,8 +630,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     Items = items
                 };
 
-                var options = new JsonSerializerOptions { WriteIndented = true };
-                var json = JsonSerializer.Serialize(snapshot, options);
+                var json = JsonSerializer.Serialize(snapshot, UtilsHelper.JsonOptionsIndented);
                 File.WriteAllText(GetPersistFilePath(), json);
 
                 _logger.Info("Saved persisted usage snapshot", "path", GetPersistFilePath());
@@ -654,7 +653,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
 
                 var json = File.ReadAllText(path);
-                var data = JsonSerializer.Deserialize<PersistedUsage>(json);
+                var data = JsonSerializer.Deserialize<PersistedUsage>(json, UtilsHelper.JsonOptions);
                 if (data == null || string.IsNullOrEmpty(data.UtcKey))
                 {
                     _logger.Info("No persisted usage snapshot found", "Cause:", "data is null or utc key is empty");

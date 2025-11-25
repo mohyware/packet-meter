@@ -1,28 +1,19 @@
 using Microsoft.Extensions.Configuration;
+using PacketPilot.Daemon.Win.Logger;
 using System;
 using System.IO;
+using System.Threading;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
-using PacketPilot.Daemon.Win.Logger;
 
 namespace PacketPilot.Daemon.Win.Config
 {
 
     public class Config
     {
-        public ServerConfig Server { get; set; } = new();
         public LoggingConfig Logging { get; set; } = new();
         public MonitorConfig Monitor { get; set; } = new();
         public ReporterConfig Reporter { get; set; } = new();
-    }
-
-    public class ServerConfig
-    {
-        public string Host { get; set; } = "localhost";
-        public int Port { get; set; } = 8080;
-        public bool UseTls { get; set; } = false;
-        public string ApiKey { get; set; } = "";
-        public string DeviceId { get; set; } = "";
     }
 
     public class LoggingConfig
@@ -39,7 +30,6 @@ namespace PacketPilot.Daemon.Win.Config
         public string Interface { get; set; } = "any";
         public string UpdateInterval { get; set; } = "5s";
         public int BufferSize { get; set; } = 1000;
-        public string UsageFile { get; set; } = "";
     }
 
     public class ReporterConfig
@@ -49,8 +39,8 @@ namespace PacketPilot.Daemon.Win.Config
         public bool UseTls { get; set; } = false;
         public string ApiKey { get; set; } = "";
         public string DeviceId { get; set; } = "";
+        public bool ReportPerProcess { get; set; } = false;
         public string ReportInterval { get; set; } = "30s";
-        public int BatchSize { get; set; } = 100;
         public int RetryAttempts { get; set; } = 3;
         public string RetryDelay { get; set; } = "5s";
     }
@@ -58,15 +48,59 @@ namespace PacketPilot.Daemon.Win.Config
     public static class ConfigLoader
     {
 
-        public static Config Load()
+        public static string GetDefaultConfigPath()
+        {
+            var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PacketPilot");
+            return Path.Combine(baseDir, "config.yaml");
+        }
+
+        public static string EnsureConfigFile(string? path = null)
+        {
+            var configPath = string.IsNullOrWhiteSpace(path) ? GetDefaultConfigPath() : path;
+            var directory = Path.GetDirectoryName(configPath);
+
+            if (string.IsNullOrEmpty(directory))
+            {
+                throw new InvalidOperationException("Invalid configuration path");
+            }
+
+            try
+            {
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                if (!File.Exists(configPath))
+                {
+                    var defaultConfig = new Config();
+                    SetDefaults(defaultConfig);
+                    Save(defaultConfig, configPath);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Failed to create config file at {configPath}: {ex.Message}", ex);
+            }
+
+            return configPath;
+        }
+
+        public static Config Load(string? path = null)
+        {
+            var configPath = EnsureConfigFile(path);
+            return LoadFromPath(configPath);
+        }
+
+        public static Config LoadFromPath(string configPath)
         {
             var config = new Config();
 
-            if (File.Exists("config.yaml"))
+            if (File.Exists(configPath))
             {
                 try
                 {
-                    var yamlContent = File.ReadAllText("config.yaml");
+                    var yamlContent = ReadFileWithRetry(configPath);
                     var deserializer = new DeserializerBuilder()
                         .WithNamingConvention(UnderscoredNamingConvention.Instance)
                         .Build();
@@ -74,7 +108,7 @@ namespace PacketPilot.Daemon.Win.Config
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Warning: Failed to load config.yaml: {ex.Message}");
+                    Console.WriteLine($"Warning: Failed to load {configPath}: {ex.Message}");
                 }
             }
 
@@ -87,21 +121,38 @@ namespace PacketPilot.Daemon.Win.Config
             return config;
         }
 
+        public static void Save(Config config, string path)
+        {
+            if (config == null) throw new ArgumentNullException(nameof(config));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Path cannot be empty", nameof(path));
+
+            var directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(UnderscoredNamingConvention.Instance)
+                .Build();
+
+            var yaml = serializer.Serialize(config);
+
+            File.WriteAllText(path, yaml);
+        }
+
         private static void SetDefaults(Config config)
         {
-            // Server defaults
-            if (string.IsNullOrEmpty(config.Server.Host))
-                config.Server.Host = "localhost";
-            if (config.Server.Port <= 0)
-                config.Server.Port = 8080;
-            if (string.IsNullOrEmpty(config.Server.DeviceId))
-                config.Server.DeviceId = GetDeviceId();
-
             // Logging defaults
             if (string.IsNullOrEmpty(config.Logging.Level))
                 config.Logging.Level = "info";
             if (string.IsNullOrEmpty(config.Logging.File))
-                config.Logging.File = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PacketPilot", "daemon.log");
+            {
+                // Use CommonApplicationData for services (writable by LocalSystem)
+                // Fall back to LocalApplicationData if running as user
+                var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PacketPilot", "Logs");
+                config.Logging.File = Path.Combine(logDir, "daemon.log");
+            }
             if (config.Logging.MaxSize <= 0)
                 config.Logging.MaxSize = 100;
             if (config.Logging.MaxAge <= 0)
@@ -118,21 +169,25 @@ namespace PacketPilot.Daemon.Win.Config
             // Reporter defaults
             if (string.IsNullOrEmpty(config.Reporter.ReportInterval))
                 config.Reporter.ReportInterval = "30s";
-            if (config.Reporter.BatchSize <= 0)
-                config.Reporter.BatchSize = 100;
             if (config.Reporter.RetryAttempts <= 0)
                 config.Reporter.RetryAttempts = 3;
             if (string.IsNullOrEmpty(config.Reporter.RetryDelay))
                 config.Reporter.RetryDelay = "5s";
+            if (string.IsNullOrEmpty(config.Reporter.ServerHost))
+                config.Reporter.ServerHost = "localhost";
+            if (config.Reporter.ServerPort <= 0)
+                config.Reporter.ServerPort = 8080;
+            if (string.IsNullOrEmpty(config.Reporter.DeviceId))
+                config.Reporter.DeviceId = GetDeviceId();
         }
 
         private static void Validate(Config config)
         {
-            if (string.IsNullOrEmpty(config.Server.Host))
+            if (string.IsNullOrEmpty(config.Reporter.ServerHost))
                 throw new ArgumentException("Server host cannot be empty");
-            if (config.Server.Port <= 0 || config.Server.Port > 65535)
+            if (config.Reporter.ServerPort <= 0 || config.Reporter.ServerPort > 65535)
                 throw new ArgumentException("Server port must be between 1 and 65535");
-            if (string.IsNullOrEmpty(config.Server.DeviceId))
+            if (string.IsNullOrEmpty(config.Reporter.DeviceId))
                 throw new ArgumentException("Device ID cannot be empty");
         }
 
@@ -160,5 +215,31 @@ namespace PacketPilot.Daemon.Win.Config
                 return "unknown-device";
             }
         }
+        private static string ReadFileWithRetry(string path, int attempts = 3, int delayMilliseconds = 200)
+        {
+            for (int i = 0; i < attempts; i++)
+            {
+                try
+                {
+                    return File.ReadAllText(path);
+                }
+                catch (IOException) when (i < attempts - 1)
+                {
+                    Thread.Sleep(delayMilliseconds);
+                }
+            }
+
+            return File.ReadAllText(path);
+        }
+    }
+
+    public class ConfigPathProvider
+    {
+        public ConfigPathProvider(string configPath)
+        {
+            ConfigPath = configPath;
+        }
+
+        public string ConfigPath { get; }
     }
 }

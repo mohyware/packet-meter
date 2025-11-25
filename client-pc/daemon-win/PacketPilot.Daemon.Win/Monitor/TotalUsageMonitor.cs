@@ -138,7 +138,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     return false;
 
                 var json = File.ReadAllText(_usageFile);
-                var usage = JsonSerializer.Deserialize<TotalUsage>(json);
+                var usage = JsonSerializer.Deserialize<TotalUsage>(json, UtilsHelper.JsonOptions);
                 if (usage == null)
                     return false;
 
@@ -378,7 +378,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     Directory.CreateDirectory(dir);
                 }
 
-                var json = JsonSerializer.Serialize(_totalUsage, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_totalUsage, UtilsHelper.JsonOptionsIndented);
                 File.WriteAllText(_usageFile, json);
             }
             catch (Exception ex)

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="PacketPilot"
+           Version="1.0.0"
+           Manufacturer="PacketPilot"
+           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
+           Compressed="yes">
+    <?define DaemonSourceDir = "..\PacketPilot.Daemon.Win\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish" ?>
+    <?define UISourceDir = "..\PacketPilot.UI\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish" ?>
+    
+    <MediaTemplate EmbedCab="yes"/>
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- Define installation directory -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="PacketPilot">
+        <Directory Id="DaemonFolder" Name="Daemon" />
+        <Directory Id="UIFolder" Name="UI" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Daemon executable with service installation -->
+    <ComponentGroup Id="DaemonFiles" Directory="DaemonFolder">
+      <Component>
+        <File Source="$(var.DaemonSourceDir)\packetpilot-daemon.exe" KeyPath="yes" />
+        <ServiceInstall Name="PacketPilotDaemon"
+                        DisplayName="PacketPilot Daemon"
+                        Description="PacketPilot network monitoring daemon service"
+                        Start="auto"
+                        Account="LocalSystem"
+                        ErrorControl="normal"
+                        Interactive="no">
+          <ServiceDependency Id="Tcpip" />
+        </ServiceInstall>
+        <ServiceControl Name="PacketPilotDaemon"
+                        Start="install"
+                        Stop="both"
+                        Remove="uninstall"
+                        Wait="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <!-- UI files -->
+    <ComponentGroup Id="UIFiles" Directory="UIFolder">
+      <Component>
+        <File Source="$(var.UISourceDir)\PacketPilot.Control.exe" KeyPath="yes" />
+        
+      </Component>
+    </ComponentGroup>
+
+    <!-- Feature definitions -->
+    <Feature Id="ProductFeature" Title="PacketPilot" Level="1">
+      <ComponentGroupRef Id="DaemonFiles" />
+      <ComponentGroupRef Id="UIFiles" />
+    </Feature>
+
+  </Package>
+</Wix>

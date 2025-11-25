@@ -250,7 +250,7 @@ namespace PacketPilot.Daemon.Win.Reporter
                 Apps = apps
             };
 
-            var jsonData = JsonSerializer.Serialize(appsPayload);
+            var jsonData = JsonSerializer.Serialize(appsPayload, UtilsHelper.JsonOptions);
 
             try
             {
@@ -284,7 +284,7 @@ namespace PacketPilot.Daemon.Win.Reporter
 
         private async Task SendPerProcessReportRequest(UsageReportRequest usageReport, string date, int appsCount, long totalRx, long totalTx)
         {
-            var jsonData = JsonSerializer.Serialize(usageReport);
+            var jsonData = JsonSerializer.Serialize(usageReport, UtilsHelper.JsonOptions);
 
             var protocol = _config.UseTls ? "https" : "http";
             var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/traffic/per-process";
@@ -313,7 +313,7 @@ namespace PacketPilot.Daemon.Win.Reporter
                     if (response.IsSuccessStatusCode)
                     {
                         var responseContent = await response.Content.ReadAsStringAsync();
-                        var serverResp = JsonSerializer.Deserialize<ServerResponse>(responseContent);
+                        var serverResp = JsonSerializer.Deserialize<ServerResponse>(responseContent, UtilsHelper.JsonOptions);
 
                         if (serverResp != null)
                         {
@@ -368,7 +368,7 @@ namespace PacketPilot.Daemon.Win.Reporter
 
         private async Task SendTotalUsageReportRequest(TotalUsageReportRequest totalUsageReport, string date, long totalRx, long totalTx)
         {
-            var jsonData = JsonSerializer.Serialize(totalUsageReport);
+            var jsonData = JsonSerializer.Serialize(totalUsageReport, UtilsHelper.JsonOptions);
 
             var protocol = _config.UseTls ? "https" : "http";
             var url = $"{protocol}://{_config.ServerHost}:{_config.ServerPort}/api/v1/traffic/total-usage";
@@ -397,7 +397,7 @@ namespace PacketPilot.Daemon.Win.Reporter
                     if (response.IsSuccessStatusCode)
                     {
                         var responseContent = await response.Content.ReadAsStringAsync();
-                        var serverResp = JsonSerializer.Deserialize<ServerResponse>(responseContent);
+                        var serverResp = JsonSerializer.Deserialize<ServerResponse>(responseContent, UtilsHelper.JsonOptions);
 
                         if (serverResp != null)
                         {
