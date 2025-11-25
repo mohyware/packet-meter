@@ -1,15 +1,17 @@
-# PacketPilot Web Frontend
+# PacketMeter Web Frontend
 
-React frontend for PacketPilot server with Google OAuth authentication.
+React frontend for PacketMeter server with Google OAuth authentication.
 
 ## Setup
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
 
 2. Create a `.env` file in the `web` directory:
+
 ```env
 VITE_GOOGLE_CLIENT_ID=your-google-client-id-here
 VITE_API_BASE_URL=http://localhost:8080
@@ -25,6 +27,7 @@ VITE_API_BASE_URL=http://localhost:8080
    - Copy the Client ID to your `.env` file
 
 4. Start the development server:
+
 ```bash
 npm run dev
 ```

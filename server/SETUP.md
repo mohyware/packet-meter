@@ -1,19 +1,22 @@
 # Setup Guide
 
-Follow these steps to get the PacketPilot server up and running.
+Follow these steps to get the PacketMeter server up and running.
 
 ## 1. Install PostgreSQL
 
 ### Windows
+
 Download from [PostgreSQL downloads page](https://www.postgresql.org/download/windows/)
 
 ### macOS
+
 ```bash
 brew install postgresql
 brew services start postgresql
 ```
 
 ### Linux (Ubuntu/Debian)
+
 ```bash
 sudo apt update
 sudo apt install postgresql postgresql-contrib
@@ -27,13 +30,13 @@ sudo systemctl start postgresql
 psql postgres
 
 # Create database
-CREATE DATABASE packetpilot;
+CREATE DATABASE packetmeter;
 
 # Create user (optional but recommended)
-CREATE USER packetpilot_user WITH PASSWORD 'your_secure_password';
+CREATE USER packetmeter_user WITH PASSWORD 'your_secure_password';
 
 # Grant privileges
-GRANT ALL PRIVILEGES ON DATABASE packetpilot TO packetpilot_user;
+GRANT ALL PRIVILEGES ON DATABASE packetmeter TO packetmeter_user;
 
 # Exit psql
 \q
@@ -52,7 +55,7 @@ Create a `.env` file in the `server` directory:
 
 ```env
 # Server Configuration
-PACKETPILOT_SERVER_PORT=8080
+PACKETMETER_SERVER_PORT=8080
 NODE_ENV=development
 
 # Session Secret (generate a random string)
@@ -60,10 +63,11 @@ SESSION_SECRET=your-super-secret-key-change-this-in-production
 
 # Database Configuration
 # Format: postgresql://username:password@localhost:5432/database_name
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/packetpilot
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/packetmeter
 ```
 
-**Important:** 
+**Important:**
+
 - Replace `postgres:postgres` with your actual username and password
 - Replace `localhost:5432` if your PostgreSQL is running on a different host/port
 - Generate a secure `SESSION_SECRET` for production
@@ -109,11 +113,13 @@ npm run db:studio
 
 # This will open a web interface at http://localhost:4983
 ```
+
 **Backup regularly**
-   ```bash
-   pg_dump packetpilot > backup.sql
-   ```
-   
+
+```bash
+pg_dump packetmeter > backup.sql
+```
+
 ## Next Steps
 
 1. Register a user: `POST /api/v1/auth/register`
@@ -122,4 +128,3 @@ npm run db:studio
 4. Configure your daemon to use the token
 5. Device will activate on first health check
 6. View usage reports: `GET /api/v1/devices/:deviceId/usage`
-

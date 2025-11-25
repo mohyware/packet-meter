@@ -1,4 +1,4 @@
-# PacketPilot Server
+# PacketMeter Server
 
 Central Node.js TypeScript server with PostgreSQL + Drizzle ORM for managing users, devices, and network usage reports.
 
@@ -39,5 +39,6 @@ For detailed setup instructions, you can find more in [SETUP.md](./SETUP.md).
 7. Device can now submit traffic reports using the same token
 
 ## TODOs:
+
 1. Add other check from user in setup 5
 2. Refactors

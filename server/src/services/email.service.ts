@@ -167,7 +167,7 @@ function generateEmailHTML(userData: UserEmailData): string {
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #1f2937; background-color: #f3f4f6; margin: 0; padding: 20px;">
   <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    <h1 style="color: #4f46e5; margin-top: 0;">PacketPilot Device Report</h1>
+    <h1 style="color: #4f46e5; margin-top: 0;">PacketMeter Device Report</h1>
     <p style="color: #6b7280; margin-bottom: 30px;">Hello ${username},</p>
     <p style="color: #6b7280;">Here's a summary of your device statistics as of ${formattedDate}:</p>
     
@@ -175,7 +175,7 @@ function generateEmailHTML(userData: UserEmailData): string {
     
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
       <p style="color: #9ca3af; font-size: 12px; margin: 0;">
-        This is an automated email from PacketPilot. You can manage your email preferences in your account settings.
+        This is an automated email from PacketMeter. You can manage your email preferences in your account settings.
       </p>
     </div>
   </div>
@@ -204,7 +204,7 @@ export async function sendDeviceStatsEmail(
     await transporter.sendMail({
       from: SMTP_USER,
       to: userData.email,
-      subject: 'PacketPilot - Your Device Statistics Report',
+      subject: 'PacketMeter - Your Device Statistics Report',
       html: htmlContent,
     });
 

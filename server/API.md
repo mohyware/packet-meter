@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API documentation for PacketPilot Server.
+Complete API documentation for PacketMeter Server.
 
 ## Base URL
 
@@ -40,6 +40,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -53,6 +54,7 @@ Content-Type: application/json
 ```
 
 **Response (400 Bad Request):**
+
 ```json
 {
   "success": false,
@@ -64,6 +66,7 @@ Content-Type: application/json
 ```
 
 **Response (409 Conflict):**
+
 ```json
 {
   "success": false,
@@ -86,6 +89,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -99,6 +103,7 @@ Content-Type: application/json
 ```
 
 **Response (401 Unauthorized):**
+
 ```json
 {
   "success": false,
@@ -116,6 +121,7 @@ Cookie: connect.sid=...
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -133,6 +139,7 @@ Cookie: connect.sid=...
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -157,6 +164,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -182,6 +190,7 @@ Cookie: connect.sid=...
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -214,6 +223,7 @@ Cookie: connect.sid=...
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -257,6 +267,7 @@ Authorization: Bearer <device-token>
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -269,6 +280,7 @@ Authorization: Bearer <device-token>
 ```
 
 **Response (401 Unauthorized):**
+
 ```json
 {
   "success": false,
@@ -311,6 +323,7 @@ Content-Type: application/json
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "success": true,
@@ -330,6 +343,7 @@ GET /health
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "ok": true
@@ -401,4 +415,3 @@ Currently no rate limiting is implemented. Consider adding for production use.
 ## CORS
 
 CORS is not configured by default. Configure if accessing from web browsers on different origins.
-

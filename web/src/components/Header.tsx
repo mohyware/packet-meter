@@ -48,7 +48,7 @@ export default function Header() {
             to="/"
             className="text-2xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
           >
-            PacketPilot
+            PacketMeter
           </Link>
           <nav className="flex items-center gap-6">
             {!isDashboardRoute && (
@@ -142,7 +142,7 @@ export default function Header() {
           to="/"
           className="text-2xl sm:text-xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
         >
-          PacketPilot
+          PacketMeter
         </Link>
         <nav className="flex items-center gap-6">
           {!isGoogleJoin ? (

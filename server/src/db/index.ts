@@ -13,7 +13,7 @@ const connectionString = DATABASE_URL;
 const db = (() => {
   if (isSQLite) {
     const libsqlClient = createLibSqlClient({
-      url: 'file:./packetPilotDB.db',
+      url: 'file:./packetMeterDB.db',
     });
 
     return drizzleLibSql(libsqlClient, {

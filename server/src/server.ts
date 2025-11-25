@@ -106,7 +106,7 @@ app.use((err: Error, req: Request, res: Response, _: NextFunction) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  logger.info(`PacketPilot server listening on :${PORT}`);
+  logger.info(`PacketMeter server listening on :${PORT}`);
   logger.info(`Environment: ${NODE_ENV}`);
   logger.info(
     `Database: ${DATABASE_URL ? 'connected' + (DB_CLIENT !== 'postgres' ? ' (SQLite)' : ' (PostgreSQL)') : 'not configured'}`

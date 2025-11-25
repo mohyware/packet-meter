@@ -17,7 +17,7 @@ import { addMonths } from 'date-fns';
 type SeedTier = 'normal' | 'premier';
 
 const NORMAL_TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? 'NORMAL_TEST_USER_EMAIL';
-const PREMIER_TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? 'premier-user@packetpilot.dev';
+const PREMIER_TEST_USER_EMAIL = process.env.TEST_USER_EMAIL ?? 'premier-user@packetmeter.dev';
 const TEST_USER_PASSWORD = process.env.TEST_USER_PASSWORD ?? 'test123';
 
 interface TierConfig {

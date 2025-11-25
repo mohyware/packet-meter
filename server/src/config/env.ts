@@ -22,8 +22,8 @@ export const DB_CLIENT = process.env.DB_CLIENT ?? 'sqlite';
 export const DATABASE_URL = requireEnv('DATABASE_URL');
 export const DATABASE_AUTH_TOKEN = process.env.DATABASE_AUTH_TOKEN;
 export const SESSION_SECRET = process.env.SESSION_SECRET ?? 'super-secret';
-export const PORT = process.env.PACKETPILOT_SERVER_PORT
-  ? parseInt(process.env.PACKETPILOT_SERVER_PORT, 10)
+export const PORT = process.env.PACKETMETER_SERVER_PORT
+  ? parseInt(process.env.PACKETMETER_SERVER_PORT, 10)
   : 8080;
 export const NODE_ENV = process.env.NODE_ENV ?? 'development';
 export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? '';

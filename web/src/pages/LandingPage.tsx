@@ -28,7 +28,7 @@ export default function LandingPage() {
             <span className="block text-black/80"> Across All Devices</span>
           </h1>
           <p className="text-xl sm:text-lg opacity-95 max-w-3xl mx-auto mb-16 leading-relaxed">
-            PacketPilot helps you track and manage network usage across your PC,
+            PacketMeter helps you track and manage network usage across your PC,
             laptop, and mobile devices in one centralized dashboard.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -100,7 +100,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 sm:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl sm:text-3xl font-bold text-center mb-12 text-gray-800">
-            Why PacketPilot?
+            Why PacketMeter?
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="bg-white p-10 rounded-xl shadow-md hover:-translate-y-1 hover:shadow-lg transition-all">
@@ -200,7 +200,7 @@ export default function LandingPage() {
       </section>
       <footer className="bg-gray-900 text-gray-300 py-8 px-4">
         <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm">© 2025 PacketPilot. All rights reserved.</p>
+          <p className="text-sm">© 2025 PacketMeter. All rights reserved.</p>
           <div className="flex flex-col sm:flex-row items-center gap-4 text-sm">
             <span className="flex items-center gap-3">
               <a

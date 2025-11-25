@@ -27,7 +27,7 @@ export function extractDeviceTypeFromUserAgent(
     return 'unknown';
   }
 
-  const match = /PacketPilot-(\w+)-Daemon/.exec(userAgent);
+  const match = /PacketMeter-(\w+)-Daemon/.exec(userAgent);
   if (!match) {
     return 'unknown';
   }

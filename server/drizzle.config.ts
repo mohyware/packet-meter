@@ -14,7 +14,7 @@ export default {
   dialect: isSQLite ? 'sqlite' : 'postgresql',
   dbCredentials: isSQLite
     ? {
-      url: 'file:./packetPilotDB.db',
+      url: 'file:./packetMeterDB.db',
     }
     : {
       url: process.env.DATABASE_URL || '',

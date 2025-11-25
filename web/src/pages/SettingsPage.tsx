@@ -88,7 +88,7 @@ export default function SettingsPage() {
         </button>
         <h1 className="text-3xl font-bold text-gray-800">Account & Plan</h1>
         <p className="text-gray-600 mt-2">
-          Review your PacketPilot account details and included features.
+          Review your PacketMeter account details and included features.
         </p>
       </div>
 
@@ -142,11 +142,11 @@ export default function SettingsPage() {
                 toast.error('Please enter an email address.');
                 return;
               }
-              const mailto = new URL(`mailto:hello@packetpilot.app`);
-              mailto.searchParams.set('subject', 'PacketPilot Early Access');
+              const mailto = new URL(`mailto:hello@packetmeter.app`);
+              mailto.searchParams.set('subject', 'PacketMeter Early Access');
               mailto.searchParams.set(
                 'body',
-                `Hi PacketPilot team,%0D%0A%0D%0AI'd like early access.%0D%0AEmail: ${encodeURIComponent(email)}`
+                `Hi PacketMeter team,%0D%0A%0D%0AI'd like early access.%0D%0AEmail: ${encodeURIComponent(email)}`
               );
               window.open(mailto.toString(), '_blank');
               toast.success('Thanks! We’ll be in touch soon.');
