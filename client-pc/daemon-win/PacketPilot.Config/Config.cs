@@ -1,14 +1,14 @@
-using Microsoft.Extensions.Configuration;
-using PacketPilot.Daemon.Win.Logger;
 using System;
 using System.IO;
+using System.Runtime.Versioning;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Threading;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
-namespace PacketPilot.Daemon.Win.Config
+namespace PacketPilot.Config
 {
-
     public class Config
     {
         public LoggingConfig Logging { get; set; } = new();
@@ -37,7 +37,7 @@ namespace PacketPilot.Daemon.Win.Config
         public string ServerHost { get; set; } = "localhost";
         public int ServerPort { get; set; } = 8080;
         public bool UseTls { get; set; } = false;
-        public string ApiKey { get; set; } = "";
+        public string ApiKey { get; set; } = "your-device-token";
         public string DeviceId { get; set; } = "";
         public bool ReportPerProcess { get; set; } = false;
         public string ReportInterval { get; set; } = "30s";
@@ -47,7 +47,6 @@ namespace PacketPilot.Daemon.Win.Config
 
     public static class ConfigLoader
     {
-
         public static string GetDefaultConfigPath()
         {
             var baseDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PacketPilot");
@@ -69,6 +68,10 @@ namespace PacketPilot.Daemon.Win.Config
                 if (!Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
+                    if (OperatingSystem.IsWindows())
+                    {
+                        SetFilePermissions(directory);
+                    }
                 }
 
                 if (!File.Exists(configPath))
@@ -76,6 +79,11 @@ namespace PacketPilot.Daemon.Win.Config
                     var defaultConfig = new Config();
                     SetDefaults(defaultConfig);
                     Save(defaultConfig, configPath);
+
+                    if (OperatingSystem.IsWindows())
+                    {
+                        SetFilePermissions(configPath);
+                    }
                 }
             }
             catch (Exception ex)
@@ -112,12 +120,8 @@ namespace PacketPilot.Daemon.Win.Config
                 }
             }
 
-            // Set defaults
             SetDefaults(config);
-
-            // Validate configuration
             Validate(config);
-
             return config;
         }
 
@@ -137,28 +141,25 @@ namespace PacketPilot.Daemon.Win.Config
                 .Build();
 
             var yaml = serializer.Serialize(config);
-
             File.WriteAllText(path, yaml);
         }
 
         private static void SetDefaults(Config config)
         {
-            // Logging defaults
             if (string.IsNullOrEmpty(config.Logging.Level))
                 config.Logging.Level = "info";
+
             if (string.IsNullOrEmpty(config.Logging.File))
             {
-                // Use CommonApplicationData for services (writable by LocalSystem)
-                // Fall back to LocalApplicationData if running as user
                 var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PacketPilot", "Logs");
                 config.Logging.File = Path.Combine(logDir, "daemon.log");
             }
+
             if (config.Logging.MaxSize <= 0)
                 config.Logging.MaxSize = 100;
             if (config.Logging.MaxAge <= 0)
                 config.Logging.MaxAge = 30;
 
-            // Monitor defaults
             if (string.IsNullOrEmpty(config.Monitor.Interface))
                 config.Monitor.Interface = "any";
             if (string.IsNullOrEmpty(config.Monitor.UpdateInterval))
@@ -166,7 +167,6 @@ namespace PacketPilot.Daemon.Win.Config
             if (config.Monitor.BufferSize <= 0)
                 config.Monitor.BufferSize = 1000;
 
-            // Reporter defaults
             if (string.IsNullOrEmpty(config.Reporter.ReportInterval))
                 config.Reporter.ReportInterval = "30s";
             if (config.Reporter.RetryAttempts <= 0)
@@ -191,11 +191,11 @@ namespace PacketPilot.Daemon.Win.Config
                 throw new ArgumentException("Device ID cannot be empty");
         }
 
+        [SupportedOSPlatform("windows")]
         private static string GetDeviceId()
         {
             try
             {
-                // Try to get machine ID from registry
                 var machineId = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography", "MachineGuid", null);
                 if (machineId != null)
                     return machineId.ToString() ?? "unknown-device";
@@ -215,6 +215,7 @@ namespace PacketPilot.Daemon.Win.Config
                 return "unknown-device";
             }
         }
+
         private static string ReadFileWithRetry(string path, int attempts = 3, int delayMilliseconds = 200)
         {
             for (int i = 0; i < attempts; i++)
@@ -231,6 +232,31 @@ namespace PacketPilot.Daemon.Win.Config
 
             return File.ReadAllText(path);
         }
+
+        [SupportedOSPlatform("windows")]
+        private static void SetFilePermissions(string path)
+        {
+            try
+            {
+                var fileInfo = new FileInfo(path);
+                var fileSecurity = fileInfo.GetAccessControl();
+
+                var usersSid = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
+                var accessRule = new FileSystemAccessRule(
+                    usersSid,
+                    FileSystemRights.Modify,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None,
+                    AccessControlType.Allow);
+
+                fileSecurity.AddAccessRule(accessRule);
+                fileInfo.SetAccessControl(fileSecurity);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Warning: Failed to set permissions for {path}: {ex.Message}");
+            }
+        }
     }
 
     public class ConfigPathProvider
@@ -243,3 +269,4 @@ namespace PacketPilot.Daemon.Win.Config
         public string ConfigPath { get; }
     }
 }
+

@@ -1,4 +1,4 @@
-using PacketPilot.Daemon.Win.Config;
+using PacketPilot.Config;
 using PacketPilot.Daemon.Win.Logger;
 using System;
 using System.Collections.Generic;
@@ -138,7 +138,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     return false;
 
                 var json = File.ReadAllText(_usageFile);
-                var usage = JsonSerializer.Deserialize<TotalUsage>(json, UtilsHelper.JsonOptions);
+                var usage = JsonSerializer.Deserialize(json, PacketPilotJsonContext.Default.TotalUsage);
                 if (usage == null)
                     return false;
 
@@ -378,7 +378,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     Directory.CreateDirectory(dir);
                 }
 
-                var json = JsonSerializer.Serialize(_totalUsage, UtilsHelper.JsonOptionsIndented);
+                var json = JsonSerializer.Serialize(_totalUsage, PacketPilotJsonContext.Default.TotalUsage);
                 File.WriteAllText(_usageFile, json);
             }
             catch (Exception ex)

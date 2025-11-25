@@ -8,10 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>PacketPilot.Control</AssemblyName>
 
-    <!-- Publish for single file -->
-    <PublishSingleFile>true</PublishSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
-    <SelfContained>false</SelfContained>
+    <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
@@ -20,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PacketPilot.Daemon.Win\PacketPilot.Daemon.Win.csproj" />
+    <ProjectReference Include="..\PacketPilot.Config\PacketPilot.Config.csproj" />
   </ItemGroup>
 
 </Project>

@@ -70,20 +70,8 @@ namespace PacketPilot.Daemon.Win.Monitor
                     // Use a unique session name with process ID to avoid conflicts
                     var sessionName = $"PacketPilotProcessMonitor_{Process.GetCurrentProcess().Id}";
 
-                    // Stop any existing session with the same name (cleanup from previous runs)
-                    try
-                    {
-                        var existingSession = TraceEventSession.GetActiveSession(sessionName);
-                        if (existingSession != null)
-                        {
-                            existingSession.Stop();
-                            existingSession.Dispose();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.Warn("Error stopping existing ETW session", "error", ex.Message);
-                    }
+                    // Cleanup from previous runs
+                    CleanupSessions();
 
                     _etwSession = new TraceEventSession(sessionName);
 
@@ -630,7 +618,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                     Items = items
                 };
 
-                var json = JsonSerializer.Serialize(snapshot, UtilsHelper.JsonOptionsIndented);
+                var json = JsonSerializer.Serialize(snapshot, PacketPilotJsonContext.Default.PersistedUsage);
                 File.WriteAllText(GetPersistFilePath(), json);
 
                 _logger.Info("Saved persisted usage snapshot", "path", GetPersistFilePath());
@@ -653,7 +641,7 @@ namespace PacketPilot.Daemon.Win.Monitor
                 }
 
                 var json = File.ReadAllText(path);
-                var data = JsonSerializer.Deserialize<PersistedUsage>(json, UtilsHelper.JsonOptions);
+                var data = JsonSerializer.Deserialize(json, PacketPilotJsonContext.Default.PersistedUsage);
                 if (data == null || string.IsNullOrEmpty(data.UtcKey))
                 {
                     _logger.Info("No persisted usage snapshot found", "Cause:", "data is null or utc key is empty");
@@ -704,12 +692,6 @@ namespace PacketPilot.Daemon.Win.Monitor
             }
         }
 
-        private class PersistedUsage
-        {
-            public string UtcKey { get; set; } = "";
-            public Dictionary<string, ProcessNetworkUsage> Items { get; set; } = new Dictionary<string, ProcessNetworkUsage>();
-        }
-
         public void Dispose()
         {
             if (_disposed)
@@ -720,6 +702,43 @@ namespace PacketPilot.Daemon.Win.Monitor
             _cancellationTokenSource?.Dispose();
             _disposed = true;
         }
+
+        private void CleanupSessions()
+        {
+            try
+            {
+                foreach (var name in TraceEventSession.GetActiveSessionNames())
+                {
+                    if (!name.Contains("PacketPilot", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    try
+                    {
+                        var existingSession = TraceEventSession.GetActiveSession(name);
+                        if (existingSession != null)
+                        {
+                            _logger.Info("Stopping stale ETW session", "session", name);
+                            existingSession.Stop();
+                            existingSession.Dispose();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Warn("Error stopping ETW session", "session", name, "error", ex.Message);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn("Failed to enumerate ETW sessions", "error", ex.Message);
+            }
+        }
+    }
+
+    internal class PersistedUsage
+    {
+        public string UtcKey { get; set; } = "";
+        public Dictionary<string, ProcessNetworkUsage> Items { get; set; } = new Dictionary<string, ProcessNetworkUsage>();
     }
 }
 

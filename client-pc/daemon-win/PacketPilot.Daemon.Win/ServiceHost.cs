@@ -1,4 +1,4 @@
-﻿using PacketPilot.Daemon.Win.Config;
+﻿using PacketPilot.Config;
 using PacketPilot.Daemon.Win.Logger;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -20,7 +20,6 @@ namespace PacketPilot.Daemon.Win
                 var configPath = ConfigLoader.EnsureConfigFile();
                 var config = ConfigLoader.LoadFromPath(configPath);
 
-                // Ensure log directory exists before creating logger
                 if (!string.IsNullOrEmpty(config.Logging.File))
                 {
                     var logDir = Path.GetDirectoryName(config.Logging.File);
@@ -51,7 +50,6 @@ namespace PacketPilot.Daemon.Win
             }
             catch (Exception ex)
             {
-                // Write to Event Log as fallback if logger creation fails
                 try
                 {
                     System.Diagnostics.EventLog.WriteEntry("PacketPilot Daemon",
@@ -60,7 +58,6 @@ namespace PacketPilot.Daemon.Win
                 }
                 catch
                 {
-                    // If Event Log also fails, write to console (visible in service logs)
                     Console.WriteLine($"FATAL ERROR: Failed to start PacketPilot Daemon: {ex.Message}");
                     Console.WriteLine($"Stack trace: {ex.StackTrace}");
                 }

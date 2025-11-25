@@ -1,18 +1,23 @@
 ## Windows Service
-A lightweight Windows service for monitoring network usage across active interfaces.
+PacketPilot’s Windows daemon uses ETW network sessions to capture per-process network usage, reports metrics back to the central PacketPilot server, and provides a simple UI for control.
+
+![PacketPilot service screenshot](../..//assets/win-service.png)
 
 ---
 ### Prerequisites
+- Windows 10 or 11 (x64)
 - .NET 9.0 SDK
-- Windows 10/11
+- WiX Toolset build tools (via `dotnet tool restore` from the repo root)
 
 ---
-### Build
+### Build & Package
+Publish both applications and then build the MSI installer:
 ```bash
-dotnet restore
+cd client-pc/daemon-win
+dotnet publish PacketPilot.Daemon.Win -c Release
+dotnet publish PacketPilot.UI -c Release
+
+cd PacketPilot.Installer
 dotnet build
 ```
-### Run
-```bash
-dotnet run
-```
+You should see the output at `client-pc/daemon-win/PacketPilot.Installer/bin\x64\Debug\PacketPilot.msi`.

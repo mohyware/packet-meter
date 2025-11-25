@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Hosting;
-using PacketPilot.Daemon.Win.Config;
+using PacketPilot.Config;
 using PacketPilot.Daemon.Win.Logger;
 using PacketPilot.Daemon.Win.Models;
 using PacketPilot.Daemon.Win.Monitor;

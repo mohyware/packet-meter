@@ -1,4 +1,4 @@
-using PacketPilot.Daemon.Win.Config;
+using PacketPilot.Config;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,7 +15,7 @@ namespace PacketPilot.UI.Services
             _configPath = ConfigLoader.EnsureConfigFile();
         }
 
-        public Task<PacketPilot.Daemon.Win.Config.Config> GetCurrentConfigAsync(CancellationToken cancellationToken = default)
+        public Task<Config.Config> GetCurrentConfigAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(ConfigLoader.LoadFromPath(_configPath));
