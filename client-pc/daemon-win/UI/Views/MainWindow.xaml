@@ -1,0 +1,256 @@
+<Window x:Class="PacketMeter.UI.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:PacketMeter.UI"
+        xmlns:viewModels="clr-namespace:PacketMeter.UI.ViewModels"
+        xmlns:converters="clr-namespace:PacketMeter.UI.Converters"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="PacketMeter"
+        Width="520"
+        Height="440"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen">
+    <Window.DataContext>
+        <viewModels:MainWindowViewModel />
+    </Window.DataContext>
+
+    <Window.Resources>
+        <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:BooleanToHiddenVisibilityConverter x:Key="BooleanToHiddenVisibilityConverter" />
+        <Style x:Key="CloseButtonStyle"
+               TargetType="Button">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#55FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="2">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E81123" />
+                    <Setter Property="BorderBrush" Value="#E81123" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="CircleToggleButtonStyle"
+               TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="#FFEEEEEE" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border Background="{TemplateBinding Background}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse x:Name="Indicator"
+                                         Width="18"
+                                         Height="18"
+                                         Stroke="#66FFFFFF"
+                                         StrokeThickness="2"
+                                         Fill="Transparent"
+                                         Margin="0,0,10,0" />
+                                <ContentPresenter VerticalAlignment="Center"
+                                                  RecognizesAccessKey="True" />
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Indicator"
+                                        Property="Stroke"
+                                        Value="#99FFFFFF" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Indicator"
+                                        Property="Fill"
+                                        Value="#5355C4" />
+                                <Setter TargetName="Indicator"
+                                        Property="Stroke"
+                                        Value="#66888888" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Indicator"
+                                        Property="Stroke"
+                                        Value="#44888888" />
+                                <Setter Property="Foreground"
+                                        Value="#66888888" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="6"
+                            GlassFrameThickness="0"
+                            UseAeroCaptionButtons="False" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Border Background="#EE101010"
+            CornerRadius="18"
+            BorderThickness="1"
+            BorderBrush="#44FFFFFF"
+            Padding="24"
+            MouseLeftButtonDown="Border_MouseLeftButtonDown">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Grid VerticalAlignment="Top">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="PacketMeter"
+                           FontSize="22"
+                           Foreground="White"
+                           FontWeight="SemiBold" />
+                <Button Grid.Column="1"
+                        Content="✕"
+                        Width="28"
+                        Height="28"
+                        Style="{StaticResource CloseButtonStyle}"
+                        Click="CloseButton_Click" />
+            </Grid>
+
+            <Grid Grid.Row="1" Margin="0,18,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0"
+                         Height="34"
+                         Padding="10,4"
+                         Text="{Binding TokenInput, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Access token"
+                         Margin="0,0,12,0" />
+                <Button Grid.Column="1"
+                        Content="{Binding AddTokenButtonText}"
+                        Command="{Binding AddTokenCommand}"
+                        Padding="16,6"
+                        FontWeight="SemiBold" />
+            </Grid>
+
+            <StackPanel Grid.Row="2" Margin="0,18,0,0">
+                <TextBlock Text="Server destination"
+                           FontWeight="SemiBold"
+                           Foreground="#FFEEEEEE" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <StackPanel.Resources>
+                        <Style TargetType="RadioButton">
+                            <Setter Property="Margin" Value="0,0,20,0" />
+                        </Style>
+                    </StackPanel.Resources>
+                    <RadioButton Content="Our Cloud"
+                                 GroupName="ServerOption"
+                                 Foreground="#FFEEEEEE"
+                                 IsChecked="{Binding SelectedServerOption,
+                                                     Converter={StaticResource EnumEqualsConverter},
+                                                     ConverterParameter=Cloud}" />
+                    <RadioButton Content="Local"
+                                 GroupName="ServerOption"
+                                 Foreground="#FFEEEEEE"
+                                 IsChecked="{Binding SelectedServerOption,
+                                                     Converter={StaticResource EnumEqualsConverter},
+                                                     ConverterParameter=Local}" />
+                </StackPanel>
+                <Grid Margin="0,12,0,0"
+                      Visibility="{Binding IsLocalServerSelected,
+                                           Converter={StaticResource BooleanToHiddenVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Server host"
+                                   Foreground="#FFDDDDDD"
+                                   Margin="0,0,0,4" />
+                        <TextBox Height="32"
+                                 Padding="8,2"
+                                 Text="{Binding ServerHost, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                        <TextBlock Text="Server port"
+                                   Foreground="#FFDDDDDD"
+                                   Margin="0,0,0,4" />
+                        <TextBox Height="32"
+                                 Padding="8,2"
+                                 Text="{Binding ServerPort, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                </Grid>
+                <StackPanel Margin="0,12,0,0">
+                    <TextBlock Text="Report interval (e.g. 30s)"
+                               Foreground="#FFDDDDDD"
+                               Margin="0,0,0,4" />
+                    <TextBox Height="32"
+                             Padding="8,2"
+                             Text="{Binding ReportInterval, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Grid.Row="3" Margin="0,18,0,0">
+                <TextBlock Text="Reporting scope"
+                           FontWeight="SemiBold"
+                           Foreground="#FFEEEEEE" />
+                <ToggleButton Margin="0,8,0,0"
+                              Style="{StaticResource CircleToggleButtonStyle}"
+                              IsChecked="{Binding ReportPerProcess}">
+                    <TextBlock Text="Per process reporting"
+                               TextWrapping="Wrap"
+                               Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=ToggleButton}}" />
+                </ToggleButton>
+                <TextBlock Text="Note: Make sure your plan supports this feature."
+                           Foreground="#FFBBBBBB"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="5"
+                       Foreground="#FFCCCCCC"
+                       TextWrapping="Wrap"
+                       Margin="0,18,0,0">
+                <Run Text="App still in progress • Contact " />
+                <Hyperlink NavigateUri="https://github.com/mohyware/PacketMeter"
+                           Foreground="#FFCCCCCC"
+                           Click="Hyperlink_Click">
+                    <Run Text="Github repository" />
+                </Hyperlink>
+                <Run Text=" • " />
+                <Hyperlink NavigateUri="https://mohy.dev"
+                           Foreground="#FFCCCCCC"
+                           Click="Hyperlink_Click">
+                    <Run Text="mohy.dev" />
+                </Hyperlink>
+                <Run Text=" • " />
+                <Hyperlink NavigateUri="https://github.com/sponsors/mohyware"
+                           Foreground="#FFCCCCCC"
+                           Click="Hyperlink_Click">
+                    <Run Text="Sponsor us!" />
+                </Hyperlink>
+            </TextBlock>
+        </Grid>
+    </Border>
+</Window>
+

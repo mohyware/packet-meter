@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="WixToolset.Sdk/4.0.0">
+  <PropertyGroup>
+    <OutputName>PacketMeter</OutputName>
+    <OutputType>Package</OutputType>
+    <Platform>x64</Platform>
+    <DefineConstants>DaemonSourceDir=..\Daemon\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish;UISourceDir=..\UI\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Harvest UI files -->
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Heat" Version="5.0.0" />
+    <HarvestDirectory Include="..\UI\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish">
+      <ComponentGroupName>UIFiles</ComponentGroupName>
+      <DirectoryRefId>UIFolder</DirectoryRefId>
+      <SuppressRootDirectory>true</SuppressRootDirectory>
+      <HarvestTransform>$(WixToolsetExtensionsPath)\Xslt\Files.xslt</HarvestTransform>
+    </HarvestDirectory>
+    <BindPath Include="..\UI\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish" />
+  </ItemGroup>
+
+</Project>

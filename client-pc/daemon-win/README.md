@@ -1,7 +1,7 @@
 ## Windows Service
-PacketPilot’s Windows daemon uses ETW network sessions to capture per-process network usage, reports metrics back to the central PacketPilot server, and provides a simple UI for control.
+PacketMeter’s Windows daemon uses ETW network sessions to capture per-process network usage, reports metrics back to the central PacketMeter server, and provides a simple UI for control.
 
-![PacketPilot service screenshot](../..//assets/win-service.png)
+![PacketMeter service screenshot](../..//assets/win-service.png)
 
 ---
 ### Prerequisites
@@ -14,10 +14,10 @@ PacketPilot’s Windows daemon uses ETW network sessions to capture per-process 
 Publish both applications and then build the MSI installer:
 ```bash
 cd client-pc/daemon-win
-dotnet publish PacketPilot.Daemon.Win -c Release
-dotnet publish PacketPilot.UI -c Release
+dotnet publish Daemon -c Release
+dotnet publish UI -c Release
 
-cd PacketPilot.Installer
+cd Installer
 dotnet build
 ```
-You should see the output at `client-pc/daemon-win/PacketPilot.Installer/bin\x64\Debug\PacketPilot.msi`.
+You should see the output at `client-pc/daemon-win/Installer/bin\x64\Debug\PacketMeter.msi`.
