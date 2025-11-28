@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class PacketPilotPackage implements ReactPackage {
+public class PacketMeterPackage implements ReactPackage {
 
     // TODO: Migrate to [BaseReactPackage] and implement [getModule] instead.
     @NonNull

@@ -78,6 +78,7 @@ export default function HomeScreen() {
         }
     }, [checkPermission, getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
 
+
     const showLoading = isFetching || isInitialLoad;
 
     const Header = () => (

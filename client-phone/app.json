@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "client-phone",
-    "slug": "client-phone",
+    "name": "packetMeter",
+    "slug": "PacketMeter",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "clientphone",
+    "scheme": "packetMeter",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.clientphone"
+      "package": "com.anonymous.packetMeter"
     },
     "web": {
       "output": "static",
@@ -39,7 +39,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,50 +1,22 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { NativeModules } from 'react-native';
-
-const { NetworkUsage, UsageAccessPermission } = NativeModules;
-
-export interface AppNetworkData {
-    packageName: string;
-    appName: string;
-    icon: string | null;
-    uid: number;
-    wifi: {
-        rx: number;
-        tx: number;
-        total: number;
-    };
-    mobile: {
-        rx: number;
-        tx: number;
-        total: number;
-    };
-    totalBytes: number;
-}
-
-export interface TotalNetworkData {
-    wifi: {
-        rx: number;
-        tx: number;
-        total: number;
-    };
-    mobile: {
-        rx: number;
-        tx: number;
-        total: number;
-    };
-    totalBytes: number;
-}
+import {
+    apiCheckPermission,
+    apiGetAppUsage,
+    apiGetTotalUsage,
+    apiOpenUsageSettings
+} from '@/services/networkUsageAPI'
+import { AppUsageDataAPI, TotalUsageDataAPI } from '@/types/networkUsage';
 
 export function useNetworkUsage() {
-    const [appUsages, setAppUsages] = useState<AppNetworkData[]>([]);
-    const [totalUsage, setTotalUsage] = useState<TotalNetworkData | null>(null);
+    const [appUsages, setAppUsages] = useState<AppUsageDataAPI[]>([]);
+    const [totalUsage, setTotalUsage] = useState<TotalUsageDataAPI | null>(null);
     const [loading, setLoading] = useState(false);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
     const checkPermission = useCallback(async () => {
         try {
-            const granted = await UsageAccessPermission.hasUsageAccess();
+            const granted = await apiCheckPermission();
             setHasPermission(granted);
             return granted;
         } catch (error) {
@@ -57,9 +29,8 @@ export function useNetworkUsage() {
     const getAppNetworkUsage = useCallback(async (period: string, count: number) => {
         setLoading(true);
         try {
-            const usage = JSON.parse(await NetworkUsage.getAppNetworkUsage(period, count));
+            const usage = await apiGetAppUsage(period, count);
             setAppUsages(usage);
-            // console.log('App network usage:', usage);
             return usage;
         } catch (e) {
             console.error('Error getting app network usage:', e);
@@ -85,9 +56,8 @@ export function useNetworkUsage() {
 
     const getTotalNetworkUsage = useCallback(async (period: string, count: number) => {
         try {
-            const usage = JSON.parse(await NetworkUsage.getTotalNetworkUsage(period, count));
+            const usage = await apiGetTotalUsage(period, count);
             setTotalUsage(usage);
-            // console.log('Total network usage:', usage);
             return usage;
         } catch (e) {
             console.error('Error getting total network usage:', e);
@@ -97,7 +67,7 @@ export function useNetworkUsage() {
 
     const openUsageSettings = useCallback(async () => {
         try {
-            UsageAccessPermission.openUsageAccessSettings();
+            await apiOpenUsageSettings();
         } catch (error) {
             console.error('Error opening settings:', error);
             Alert.alert("Error", "Failed to open settings");

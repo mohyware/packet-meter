@@ -55,8 +55,13 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
      */
     @ReactMethod
     public void getAppNetworkUsage(String period, int count, Promise promise) {
-        if (!period.equals("day") && !period.equals("week") && !period.equals("month")) {
-            promise.reject("ERR_INVALID_PERIOD", "Allowed values: day, week, month");
+        if (!period.equals("hour") && !period.equals("day") && !period.equals("week") && !period.equals("month")) {
+            promise.reject("ERR_INVALID_PERIOD", "Allowed values: hour, day, week, month");
+            return;
+        }
+
+        if (period.equals("hour") && count != 1) {
+            promise.reject("ERR_INVALID_COUNT", "Count must be 1 for hour period");
             return;
         }
 
@@ -188,8 +193,13 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void getTotalNetworkUsage(String period, int count, Promise promise) {
         try {
-            if (!period.equals("day") && !period.equals("week") && !period.equals("month")) {
-                promise.reject("ERR_INVALID_PERIOD", "Allowed values: day, week, month");
+            if (!period.equals("hour") && !period.equals("day") && !period.equals("week") && !period.equals("month")) {
+                promise.reject("ERR_INVALID_PERIOD", "Allowed values: hour, day, week, month");
+                return;
+            }
+
+            if (period.equals("hour") && count != 1) {
+                promise.reject("ERR_INVALID_COUNT", "Count must be 1 for hour period");
                 return;
             }
 
@@ -397,6 +407,13 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
         long end = cal.getTimeInMillis();
 
         switch (period) {
+            case "hour":
+                // For hour period, start from the beginning of the current hour
+                // e.g., if it's 8:30, start from 8:00
+                cal.set(Calendar.MINUTE, 0);
+                cal.set(Calendar.SECOND, 0);
+                cal.set(Calendar.MILLISECOND, 0);
+                break;
             case "day":
                 // For day period, start from midnight (00:00) of the day
                 // count=1: today's midnight, count=2: yesterday's midnight, etc.

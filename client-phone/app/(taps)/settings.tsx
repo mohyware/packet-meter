@@ -1,25 +1,60 @@
-import { View, StyleSheet, Alert, Switch, NativeModules, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Alert, Switch, ScrollView } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getTheme, setTheme, subscribe } from '@/hooks/theme-store';
 import React from 'react';
 import { ThemedView } from '@/components/themed-view';
-
-type UsageAccessPermissionType = {
-    hasUsageAccess?: () => Promise<boolean>;
-    openUsageAccessSettings?: () => void;
-};
-
-const { UsageAccessPermission } = NativeModules as { UsageAccessPermission?: UsageAccessPermissionType };
+import { QRScannerModal } from '@/components/QRScannerModal';
+import { useCameraPermissions } from 'expo-camera';
+import { healthCheck } from '@/services/reporting';
+import type { DeviceStatus, ReportMode } from '@/types/reports';
+import { useReporterStore, DEFAULT_HOST, DEFAULT_PORT, setDeviceAuth } from '@/store/useReporterStore';
+import { ReporterSettingsCard } from '@/components/ReporterSettingsCard';
+import { DeviceTokenCard } from '@/components/DeviceTokenCard';
+import { PermissionsCard } from '@/components/PermissionsCard';
+import { ManualActions } from '@/components/ManualActions';
+import { CONNECTION_STATUS_META } from '@/constants/connections-status';
 
 export default function SettingsScreen() {
     const systemScheme = useColorScheme();
     const [themeName, setThemeName] = React.useState(getTheme() ?? (systemScheme === 'dark' ? 'dark' : 'light'));
+    const [showQRScanner, setShowQRScanner] = React.useState(false);
+    const [permission, requestPermission] = useCameraPermissions();
+    const [isLoadingToken] = React.useState(false);
+    const [showAdvanced, setShowAdvanced] = React.useState(false);
+
+    const {
+        serverHost,
+        serverPort,
+        useTls,
+        reportMode,
+        deviceToken,
+        deviceStatus,
+        isSavingConfig,
+        setServerHost,
+        setServerPort,
+        setUseTls,
+        setReportMode,
+        setDeviceToken,
+        setIsSavingConfig,
+        serverTarget,
+        setServerTarget,
+    } = useReporterStore();
+
+    const [serverHostInput, setServerHostInput] = React.useState(serverHost);
+    const [serverPortInput, setServerPortInput] = React.useState(String(serverPort));
+    const [isConfigDirty, setIsConfigDirty] = React.useState(false);
 
     React.useEffect(() => {
         const unsub = subscribe((t) => setThemeName(t));
         return unsub;
     }, []);
+
+    React.useEffect(() => {
+        setServerHostInput(serverHost);
+        setServerPortInput(String(serverPort));
+        setIsConfigDirty(false);
+    }, [serverHost, serverPort]);
 
     const isDark = themeName === 'dark';
 
@@ -27,60 +62,214 @@ export default function SettingsScreen() {
         setTheme(value ? 'dark' : 'light');
     };
 
-    const checkPermission = async () => {
-        try {
-            if (!UsageAccessPermission?.hasUsageAccess) {
-                Alert.alert('Unavailable', 'Permission module is not available on this platform.');
-                return;
-            }
-            const granted = await UsageAccessPermission.hasUsageAccess();
-            Alert.alert('Usage Access', granted ? 'Permission is granted.' : 'Permission is NOT granted.');
-        } catch {
-            Alert.alert('Error', 'Failed to check permission status');
+    const ensureCameraPermission = async () => {
+        if (permission?.granted) {
+            return true;
+        }
+
+        const result = await requestPermission();
+        return Boolean(result?.granted);
+    };
+
+    const handleOpenQRScanner = async () => {
+        const granted = await ensureCameraPermission();
+
+        if (granted) {
+            setShowQRScanner(true);
+            return;
+        }
+
+        Alert.alert('Permission required', 'Please allow camera access to scan QR codes.');
+    };
+
+    const handleServerHostChange = (value: string) => {
+        setServerHostInput(value);
+        setIsConfigDirty(true);
+    };
+
+    const handleServerPortChange = (value: string) => {
+        const sanitized = value.replace(/[^0-9]/g, '');
+        setServerPortInput(sanitized);
+        setIsConfigDirty(true);
+    };
+
+    const handleTlsToggle = (value: boolean) => {
+        setUseTls(value);
+        setIsConfigDirty(true);
+    };
+
+    const handleSelectReportMode = (value: ReportMode) => {
+        setReportMode(value);
+        setIsConfigDirty(true);
+    };
+
+    const handleServerTargetChange = (mode: 'cloud' | 'custom') => {
+        if (mode === serverTarget) return;
+
+        if (mode === 'cloud') {
+            setServerTarget('cloud');
+            setUseTls(true);
+            setServerHost(DEFAULT_HOST);
+            setServerPort(DEFAULT_PORT);
+            setServerHostInput(DEFAULT_HOST);
+            setServerPortInput(String(DEFAULT_PORT));
+            setIsConfigDirty(true);
+        } else {
+            const customHost = 'localhost';
+            const customPort = 8080;
+            setServerTarget('custom');
+            setUseTls(false);
+            setServerHost(customHost);
+            setServerPort(customPort);
+            setServerHostInput(customHost);
+            setServerPortInput(String(customPort));
+            setIsConfigDirty(true);
         }
     };
 
-    const openUsageSettings = async () => {
+    const handleSaveReporterSettings = async () => {
+        const trimmedHost = serverHostInput.trim();
+        const parsedPort = Number(serverPortInput);
+
+        if (!trimmedHost) {
+            Alert.alert('Invalid Host', 'Server host cannot be empty.');
+            return;
+        }
+
+        if (!Number.isFinite(parsedPort) || parsedPort <= 0) {
+            Alert.alert('Invalid Port', 'Please enter a valid port number.');
+            return;
+        }
+
+        setIsSavingConfig(true);
         try {
-            if (!UsageAccessPermission?.openUsageAccessSettings) {
-                Alert.alert('Unavailable', 'Cannot open settings on this platform.');
-                return;
-            }
-            UsageAccessPermission.openUsageAccessSettings();
-        } catch {
-            Alert.alert('Error', 'Failed to open settings');
+            setServerHost(trimmedHost);
+            setServerPort(parsedPort);
+            setIsConfigDirty(false);
+            Alert.alert('Settings Saved', 'Reporter settings updated successfully.');
+        } catch (err) {
+            console.error('Failed to save reporter settings', err);
+            Alert.alert('Save Failed', 'Could not store reporter settings. Please try again.');
+        } finally {
+            setIsSavingConfig(false);
         }
     };
+
+    const handleTokenScanned = React.useCallback(async (data: string) => {
+        const token = data.trim();
+
+        if (!token || token.length < 10) {
+            Alert.alert('Invalid QR Code', 'The scanned QR code does not contain a valid token.');
+            return;
+        }
+
+        try {
+            await setDeviceAuth(token);
+            setDeviceToken(token);
+            setShowQRScanner(false);
+
+            const healthy = await healthCheck();
+            Alert.alert(
+                healthy ? 'Device Token Updated' : 'Device Token Saved',
+                healthy
+                    ? 'Device is connected. Waiting for approval from the server.'
+                    : 'Saved locally but the server did not respond. Please verify the address and try again.'
+            );
+        } catch (err) {
+            console.error('Failed to save device token', err);
+            Alert.alert('Save Failed', 'Could not store the scanned token. Please try again.');
+        }
+    }, [setDeviceToken]);
+
+    const tokenPreview = deviceToken
+        ? `${deviceToken.slice(0, 6)}…${deviceToken.slice(-4)}`
+        : null;
+
+    const statusInfo = CONNECTION_STATUS_META[deviceStatus as DeviceStatus] ?? CONNECTION_STATUS_META.not_connected;
+    const canSaveReporterSettings = isConfigDirty && serverHostInput.trim().length > 0 && Number(serverPortInput) > 0;
 
     return (
         <ThemedView style={styles.container}>
+            <QRScannerModal
+                visible={showQRScanner}
+                onClose={() => setShowQRScanner(false)}
+                onScanSuccess={handleTokenScanned}
+            />
 
-            <ThemedView style={styles.sectionCard}>
-                <ThemedText type="subtitle">Theme</ThemedText>
-                <View style={styles.row}>
-                    <ThemedText>Light</ThemedText>
-                    <Switch
-                        value={isDark}
-                        onValueChange={onToggleTheme}
-                        trackColor={{ false: isDark ? '#3a3a3a' : '#cfcfcf', true: '#5355C4' }}
-                        thumbColor={isDark ? '#ffffff' : '#ffffff'}
-                        ios_backgroundColor={isDark ? '#3a3a3a' : '#cfcfcf'}
-                    />
-                    <ThemedText>Dark</ThemedText>
-                </View>
-            </ThemedView>
+            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
-            <ThemedView style={styles.sectionCard}>
-                <ThemedText type="subtitle">Permissions</ThemedText>
-                <View style={styles.col}>
-                    <TouchableOpacity activeOpacity={0.9} style={styles.primaryButton} onPress={checkPermission}>
-                        <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Check Permission</ThemedText>
-                    </TouchableOpacity>
-                    <TouchableOpacity activeOpacity={0.9} style={styles.primaryButton} onPress={openUsageSettings}>
-                        <ThemedText style={styles.primaryButtonText} darkColor="#fff" lightColor="#fff">Open Usage Settings</ThemedText>
-                    </TouchableOpacity>
-                </View>
-            </ThemedView>
+                {/* Connection Status */}
+                <ThemedView style={styles.sectionCard}>
+                    <ThemedText type="subtitle">Connection Status</ThemedText>
+                    <View style={[styles.statusBadge, { backgroundColor: statusInfo.accent }]}>
+                        <ThemedText style={styles.statusBadgeText} lightColor="#fff" darkColor="#fff">
+                            {statusInfo.label}
+                        </ThemedText>
+                    </View>
+                    <ThemedText style={styles.statusDescription}>{statusInfo.description}</ThemedText>
+                </ThemedView>
+
+                {/* Device Token */}
+                <DeviceTokenCard
+                    isLoadingToken={isLoadingToken}
+                    tokenPreview={tokenPreview}
+                    onScanPress={handleOpenQRScanner}
+                />
+
+                {/* Reporter Settings */}
+                <ReporterSettingsCard
+                    serverHost={serverHostInput}
+                    serverPort={serverPortInput}
+                    useTls={useTls}
+                    reportMode={reportMode}
+                    targetMode={serverTarget}
+                    canSave={canSaveReporterSettings}
+                    isSaving={isSavingConfig}
+                    onChangeHost={handleServerHostChange}
+                    onChangePort={handleServerPortChange}
+                    onToggleTls={handleTlsToggle}
+                    onSelectMode={handleSelectReportMode}
+                    onChangeTargetMode={handleServerTargetChange}
+                    onSave={handleSaveReporterSettings}
+                />
+
+                {/* Theme */}
+                <ThemedView style={styles.sectionCard}>
+                    <ThemedText type="subtitle">Theme</ThemedText>
+                    <View style={styles.row}>
+                        <ThemedText>Light</ThemedText>
+                        <Switch
+                            value={isDark}
+                            onValueChange={onToggleTheme}
+                            trackColor={{ false: isDark ? '#3a3a3a' : '#cfcfcf', true: '#5355C4' }}
+                            thumbColor={isDark ? '#ffffff' : '#ffffff'}
+                            ios_backgroundColor={isDark ? '#3a3a3a' : '#cfcfcf'}
+                        />
+                        <ThemedText>Dark</ThemedText>
+                    </View>
+                </ThemedView>
+
+                {/* Advanced */}
+                <ThemedView style={styles.sectionCard}>
+                    <ThemedText type="subtitle">Advanced</ThemedText>
+                    <View style={[styles.row, styles.justifyBetween]}>
+                        <ThemedText>For testing purposes</ThemedText>
+                        <Switch
+                            value={showAdvanced}
+                            onValueChange={setShowAdvanced}
+                            trackColor={{ false: '#cfcfcf', true: '#5355C4' }}
+                            thumbColor="#ffffff"
+                        />
+                    </View>
+                </ThemedView>
+
+                {showAdvanced &&
+                    <>
+                        <ManualActions />
+                        <PermissionsCard />
+                    </>
+                }
+            </ScrollView>
         </ThemedView>
     );
 }
@@ -91,6 +280,10 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'stretch',
         padding: 16,
+        gap: 16,
+    },
+    scrollContent: {
+        paddingBottom: 10,
         gap: 16,
     },
     sectionCard: {
@@ -121,5 +314,79 @@ const styles = StyleSheet.create({
     primaryButtonText: {
         fontSize: 16,
         fontWeight: '600',
+    },
+    helperText: {
+        fontSize: 12,
+    },
+    statusBadge: {
+        alignSelf: 'flex-start',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 999,
+        marginBottom: 8,
+    },
+    statusBadgeText: {
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    statusDescription: {
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    fieldGroup: {
+        width: '100%',
+        gap: 4,
+    },
+    fieldLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: '#d4d4d4',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 14,
+        backgroundColor: '#ffffff',
+        color: '#111827',
+    },
+    justifyBetween: {
+        justifyContent: 'space-between',
+    },
+    modeRow: {
+        flexDirection: 'row',
+        gap: 12,
+        flexWrap: 'wrap',
+    },
+    modeOption: {
+        flex: 1,
+        minWidth: '45%',
+        borderWidth: 1,
+        borderColor: '#d4d4d4',
+        borderRadius: 12,
+        padding: 12,
+        gap: 4,
+    },
+    modeOptionActive: {
+        backgroundColor: '#5355C4',
+        borderColor: '#5355C4',
+    },
+    modeOptionTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    modeOptionTitleActive: {
+        color: '#ffffff',
+    },
+    modeOptionDescription: {
+        fontSize: 12,
+        color: '#4b5563',
+    },
+    modeOptionDescriptionActive: {
+        color: '#e5e7eb',
+    },
+    buttonDisabled: {
+        opacity: 0.6,
     },
 });
