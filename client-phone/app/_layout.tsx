@@ -1,4 +1,8 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
@@ -6,6 +10,7 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getTheme, subscribe } from '@/hooks/theme-store';
 import React from 'react';
+import { registerBackgroundTasks } from '@/services/backgroundTasks';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -13,11 +18,20 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const systemScheme = useColorScheme();
-  const [themeName, setThemeName] = React.useState(getTheme() ?? (systemScheme === 'dark' ? 'dark' : 'light'));
+  const [themeName, setThemeName] = React.useState(
+    getTheme() ?? (systemScheme === 'dark' ? 'dark' : 'light')
+  );
 
   React.useEffect(() => {
     const unsub = subscribe((t) => setThemeName(t));
     return unsub;
+  }, []);
+
+  // Register background tasks with 15 minute interval
+  React.useEffect(() => {
+    registerBackgroundTasks(15).catch((err) => {
+      console.error('Failed to register background tasks:', err);
+    });
   }, []);
 
   const theme = themeName === 'dark' ? DarkTheme : DefaultTheme;
