@@ -1,4 +1,4 @@
-import { StyleSheet, TouchableOpacity } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { ThemedText } from './themed-text';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline';
@@ -6,12 +6,14 @@ type ButtonVariant = 'primary' | 'secondary' | 'outline';
 type ButtonProps = {
   title: string;
   disabled: boolean;
+  icon?: React.ReactNode;
   onPress: () => void;
   variant?: ButtonVariant;
 };
 
 export const Button: React.FC<ButtonProps> = ({
   title,
+  icon,
   onPress,
   disabled,
   variant = 'primary',
@@ -23,6 +25,7 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={disabled}
       onPress={onPress}
     >
+      {icon && <View>{icon}</View>}
       <ThemedText
         style={ButtonStyles.primaryText}
         darkColor="#fff"
@@ -40,6 +43,9 @@ export const ButtonStyles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
   },
   secondary: {
     backgroundColor: '#6c757d',

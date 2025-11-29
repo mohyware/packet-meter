@@ -10,6 +10,9 @@ import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/Button';
 import type { ReportMode } from '@/types/reports';
 import { ThemedView } from '@/components/themed-view';
+import AntDesign from '@expo/vector-icons/AntDesign';
+import Feather from '@expo/vector-icons/Feather';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 const MODE_LABELS: Record<ReportMode, { title: string }> = {
   total: {
@@ -51,6 +54,9 @@ export function ReporterSettingsCard({
   onChangeTargetMode,
   onSave,
 }: ReporterSettingsCardProps) {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
   return (
     <ThemedView style={styles.sectionCard}>
       <ThemedText type="subtitle">Reporter Settings</ThemedText>
@@ -59,6 +65,7 @@ export function ReporterSettingsCard({
         <View style={styles.modeRow}>
           {(['cloud', 'custom'] as const).map((mode) => {
             const active = targetMode === mode;
+            const iconColor = active ? 'white' : isDark ? 'white' : 'black';
             return (
               <TouchableOpacity
                 key={mode}
@@ -66,6 +73,11 @@ export function ReporterSettingsCard({
                 onPress={() => onChangeTargetMode(mode)}
                 activeOpacity={0.9}
               >
+                {mode === 'cloud' ? (
+                  <AntDesign name="cloud-server" size={20} color={iconColor} />
+                ) : (
+                  <Feather name="server" size={20} color={iconColor} />
+                )}
                 <ThemedText
                   style={[
                     styles.modeOptionTitle,
@@ -74,7 +86,7 @@ export function ReporterSettingsCard({
                   darkColor={active ? '#fff' : undefined}
                   lightColor={active ? '#fff' : undefined}
                 >
-                  {mode === 'cloud' ? 'Our Cloud' : 'Custom Server'}
+                  {mode === 'cloud' ? 'Our Cloud' : 'Custom'}
                 </ThemedText>
               </TouchableOpacity>
             );
@@ -206,7 +218,10 @@ const styles = StyleSheet.create({
     borderColor: '#d4d4d4',
     borderRadius: 12,
     padding: 12,
-    gap: 4,
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modeOptionActive: {
     backgroundColor: '#5355C4',

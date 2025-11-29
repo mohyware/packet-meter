@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/Button';
 import { ThemedView } from '@/components/themed-view';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 type DeviceTokenCardProps = {
   isLoadingToken: boolean;
@@ -20,6 +21,7 @@ export function DeviceTokenCard({
       <View style={styles.col}>
         <Button
           title="Add Device Token (QR Code)"
+          icon={<AntDesign name="qrcode" size={24} color="white" />}
           onPress={onScanPress}
           disabled={false}
           variant="primary"

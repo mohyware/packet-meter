@@ -8,6 +8,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { View, StyleSheet, Alert } from 'react-native';
 import { Button } from '@/components/Button';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 export function ManualActions() {
   const [manualAction, setManualAction] = React.useState<
@@ -89,6 +92,9 @@ export function ManualActions() {
               ? 'Running health check…'
               : 'Send Health Check'
           }
+          icon={
+            <MaterialIcons name="health-and-safety" size={24} color="white" />
+          }
           onPress={handleManualHealthCheck}
           disabled={manualActionInFlight}
         />
@@ -97,6 +103,9 @@ export function ManualActions() {
             manualAction === 'total'
               ? 'Reporting total usage…'
               : 'Report Total Usage'
+          }
+          icon={
+            <MaterialCommunityIcons name="chart-box" size={24} color="white" />
           }
           onPress={handleManualTotalReport}
           disabled={manualActionInFlight}
@@ -107,6 +116,7 @@ export function ManualActions() {
               ? 'Reporting per-app usage…'
               : 'Report Per-App Usage'
           }
+          icon={<AntDesign name="appstore" size={24} color="white" />}
           onPress={handleManualPerProcessReport}
           disabled={manualActionInFlight}
         />
