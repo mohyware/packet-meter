@@ -1,4 +1,4 @@
-package com.anonymous.clientphone
+package com.anonymous.packetMeter
 
 import android.app.Application
 import android.content.res.Configuration
@@ -16,7 +16,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ReactNativeHostWrapper
 
-import com.anonymous.clientphone.PacketMeterPackage
+import com.anonymous.packetMeter.PacketMeterPackage
 
 class MainApplication : Application(), ReactApplication {
 

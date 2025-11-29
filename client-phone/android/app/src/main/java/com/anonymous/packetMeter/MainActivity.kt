@@ -1,4 +1,4 @@
-package com.anonymous.clientphone
+package com.anonymous.packetMeter
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

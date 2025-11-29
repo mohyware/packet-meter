@@ -4,6 +4,14 @@ Mobile app built with React Native and Expo that monitors network traffic usage 
 
 Currently, the data is stored daily, not hourly, because this API doesn’t provide real-time usage. I’m still exploring ways to get real-time usage data, similar to how apps like GlassWire do for example.
 
+<table>
+  <tr>
+    <td><img src="../assets/client-phone/img3.jpg" width="250"></td>
+    <td><img src="../assets/client-phone/img4.jpg" width="250"></td>
+    <td><img src="../assets/client-phone/img1.jpg" width="250"></td>
+  </tr>
+</table>
+
 ## Prerequisites
 
 - Node.js (v18 or higher)
@@ -11,18 +19,21 @@ Currently, the data is stored daily, not hourly, because this API doesn’t prov
 - Expo CLI (`npm install -g expo-cli`)
 - Android device or emulator
 
-## Getting Started
+## Build Android APK
 
 ```bash
-# 1. Install JS dependencies
+# Install JS dependencies
 npm install
 
-# 2. Navigate to android folder
+# Build and install
 cd android
+./gradlew assembleDebug      # For development
+./gradlew assembleRelease    # For production
+```
 
-# 3. Build and install
-./gradlew installDebug
+APK will be in:
 
-# Run on Android device/emulator
-npx expo run:android
+```bash
+android/app/build/outputs/apk/debug/
+android/app/build/outputs/apk/release/
 ```

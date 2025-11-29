@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.anonymous.clientphone'
+    namespace 'com.anonymous.packetMeter'
     defaultConfig {
-        applicationId 'com.anonymous.clientphone'
+        applicationId 'com.anonymous.packetMeter'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
