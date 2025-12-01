@@ -1,8 +1,9 @@
-# PacketMeter
+# Packet Meter
 
 > Cross-platform network traffic monitoring system that can be self-hosted easily.
 
-![PacketMeter Dashboard](./assets/main.png)
+<!-- ![PacketMeter Dashboard](./assets/main.png) -->
+![Architecture](./assets/architecture.png)
 
 ## Features
 
@@ -15,7 +16,7 @@
 
 ## Preview
 
-### Web Dashboard
+### Dashboard
 ![Web Dashboard](./assets/web/img1.png)
 
 <table width="100%">
@@ -43,10 +44,6 @@
 
 <!-- ### Email Reports
 ![Email Report](./assets/web/mail.png) -->
-
-## How it works
-
-![Architecture](./assets/architecture.png)
 
 ## Self-Hosting
 
