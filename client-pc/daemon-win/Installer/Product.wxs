@@ -9,11 +9,10 @@
     <?define DaemonSourceDir = "..\Daemon\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish" ?>
     <?define UISourceDir = "..\UI\bin\Release\net9.0-windows10.0.19041.0\win-x64\publish" ?>
 
-    <!-- TODO: Add icon and URL info to the installer -->
-    <!-- <Property Id="ARPPRODUCTICON" Value="ProductIcon" /> -->
     <Property Id="ARPURLINFOABOUT" Value="https://mohy.dev" />
     <Property Id="ARPNOREPAIR" Value="yes" />
-    <!-- <Icon Id="" SourceFile="" /> -->
+    <Icon Id="ProductIcon" SourceFile="..\assets\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
 
     <MediaTemplate EmbedCab="yes"/>
 
@@ -63,6 +62,7 @@
                       Name="PacketMeter"
                       Description="PacketMeter Network Monitor"
                       Target="[UIFolder]PacketMeter.UI.exe"
+                      Icon="ProductIcon"
                       WorkingDirectory="UIFolder" />
             <RegistryValue Root="HKCU" 
                           Key="Software\PacketMeter" 
@@ -83,6 +83,7 @@
                   Name="PacketMeter"
                   Description="PacketMeter Network Monitor"
                   Target="[UIFolder]PacketMeter.UI.exe"
+                  Icon="ProductIcon"
                   WorkingDirectory="UIFolder" />
         <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
         <RegistryValue Root="HKCU" 
