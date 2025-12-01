@@ -11,6 +11,7 @@ interface ImportMetaEnv {
     readonly VITE_GITHUB_URL: string
     readonly VITE_PORTFOLIO_URL: string
     readonly VITE_JOIN_METHOD: string
+    readonly VITE_NODE_ENV: string
 }
 
 interface ImportMeta {

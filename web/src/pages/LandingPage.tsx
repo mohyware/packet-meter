@@ -147,6 +147,104 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section className="py-24 px-4 sm:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <h2 className="text-4xl sm:text-3xl font-bold text-center mb-4 text-gray-800">
+            Beautiful, Intuitive, Simple
+          </h2>
+          <p className="text-center text-gray-600 mb-16 max-w-2xl mx-auto">
+            Experience our intuitive interfaces across mobile and web platforms
+          </p>
+
+          {/* Main Hero Image */}
+          <div className="mb-16">
+            <div className="rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
+              <img
+                src="/assets/web/img1.png"
+                alt="PacketMeter main dashboard"
+                className="w-full h-auto object-cover"
+              />
+            </div>
+          </div>
+
+          {/* Mobile App Section */}
+          <div className="mb-20">
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <Smartphone className="h-7 w-7 text-indigo-600" />
+              <h3 className="text-3xl font-bold text-gray-800">Mobile App</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/client-phone/img3.jpg"
+                  alt="Mobile app screenshot 1"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/client-phone/img4.jpg"
+                  alt="Mobile app screenshot 2"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/client-phone/img1.jpg"
+                  alt="Mobile app screenshot 4"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop/Web App Section */}
+          <div className="mb-20">
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <Monitor className="h-7 w-7 text-indigo-600" />
+              <h3 className="text-3xl font-bold text-gray-800">
+                Web Dashboard
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/web/img2.png"
+                  alt="Web dashboard screenshot 2"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/web/img3.png"
+                  alt="Web dashboard screenshot 3"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Email Reports Section */}
+          <div>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <MailOpen className="h-7 w-7 text-indigo-600" />
+              <h3 className="text-3xl font-bold text-gray-800">
+                Email Reports
+              </h3>
+            </div>
+            <div className="max-w-2xl mx-auto">
+              <div className="rounded-xl overflow-hidden shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                <img
+                  src="/assets/web/mail.png"
+                  alt="Email report example"
+                  className="w-full h-auto object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="py-20 px-4 sm:px-8 bg-white">
         <div className="max-w-5xl mx-auto text-center">
           <div className="flex items-center justify-center gap-3 mb-6 text-indigo-600">

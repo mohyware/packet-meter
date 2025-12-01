@@ -22,11 +22,9 @@ export default function Header() {
     location.pathname.startsWith('/dashboard') ||
     location.pathname.startsWith('/devices') ||
     location.pathname.startsWith('/settings');
-  const joinMethodRaw =
-    typeof import.meta.env.VITE_JOIN_METHOD === 'string'
-      ? import.meta.env.VITE_JOIN_METHOD
-      : undefined;
+  const joinMethodRaw = import.meta.env.VITE_JOIN_METHOD;
   const isGoogleJoin = (joinMethodRaw ?? 'google').toLowerCase() === 'google';
+  const nodeEnv = import.meta.env.VITE_NODE_ENV;
 
   async function handleClassicLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -145,56 +143,57 @@ export default function Header() {
           PacketMeter
         </Link>
         <nav className="flex items-center gap-6">
-          {!isGoogleJoin ? (
-            <form
-              onSubmit={handleClassicLogin}
-              className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"
-            >
-              <input
-                type="email"
-                value={classicEmail}
-                onChange={(event) => setClassicEmail(event.target.value)}
-                placeholder="Email"
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete="email"
-                disabled={isClassicLoggingIn}
-              />
-              <input
-                type="password"
-                value={classicPassword}
-                onChange={(event) => setClassicPassword(event.target.value)}
-                placeholder="Password"
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoComplete="current-password"
-                disabled={isClassicLoggingIn}
-              />
-              <button
-                type="submit"
-                disabled={isClassicLoggingIn}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-60"
+          {nodeEnv !== 'production' &&
+            (!isGoogleJoin ? (
+              <form
+                onSubmit={handleClassicLogin}
+                className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"
               >
-                {isClassicLoggingIn ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-          ) : (
-            <GoogleLogin
-              onSuccess={(credentialResponse) => {
-                if (credentialResponse.credential) {
-                  loginAsync(credentialResponse.credential).catch(() => {
-                    // Error is already handled in the mutation's onError
-                  });
-                }
-              }}
-              onError={() => {
-                toast.error('Google login failed. Please try again.');
-              }}
-              useOneTap
-              theme="outline"
-              size="large"
-              text="signin_with"
-              shape="rectangular"
-            />
-          )}
+                <input
+                  type="email"
+                  value={classicEmail}
+                  onChange={(event) => setClassicEmail(event.target.value)}
+                  placeholder="Email"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoComplete="email"
+                  disabled={isClassicLoggingIn}
+                />
+                <input
+                  type="password"
+                  value={classicPassword}
+                  onChange={(event) => setClassicPassword(event.target.value)}
+                  placeholder="Password"
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoComplete="current-password"
+                  disabled={isClassicLoggingIn}
+                />
+                <button
+                  type="submit"
+                  disabled={isClassicLoggingIn}
+                  className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                >
+                  {isClassicLoggingIn ? 'Logging in...' : 'Login'}
+                </button>
+              </form>
+            ) : (
+              <GoogleLogin
+                onSuccess={(credentialResponse) => {
+                  if (credentialResponse.credential) {
+                    loginAsync(credentialResponse.credential).catch(() => {
+                      // Error is already handled in the mutation's onError
+                    });
+                  }
+                }}
+                onError={() => {
+                  toast.error('Google login failed. Please try again.');
+                }}
+                useOneTap
+                theme="outline"
+                size="large"
+                text="signin_with"
+                shape="rectangular"
+              />
+            ))}
         </nav>
       </div>
     </header>
