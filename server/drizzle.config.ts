@@ -12,12 +12,8 @@ export default {
     : './src/db/schema.postgres.ts',
   out: './drizzle',
   dialect: isSQLite ? 'sqlite' : 'postgresql',
-  dbCredentials: isSQLite
-    ? {
-      url: 'file:./packetMeterDB.db',
-    }
-    : {
-      url: process.env.DATABASE_URL || '',
-    },
+  dbCredentials: {
+    url: process.env.DATABASE_URL ?? '',
+  },
 } satisfies Config;
 

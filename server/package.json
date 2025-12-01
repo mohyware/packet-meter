@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon --watch src --ext ts --exec \"tsx src/server.ts\"",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsup src/server.ts --format esm --dts",
     "start": "node dist/server.js",
     "lint": "eslint src/**/*.ts",
     "type-check": "tsc --noEmit",
@@ -61,6 +61,7 @@
     "eslint-config-prettier": "^10.1.8",
     "nodemon": "^3.1.9",
     "prettier": "^3.6.2",
+    "tsup": "^8.5.1",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.3"

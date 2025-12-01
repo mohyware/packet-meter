@@ -3,7 +3,8 @@
 - [ ] Handle data better in the front end especially total usage 
 - [ ] Ubuntu service
 - [ ] Handle background reporting (client-phone)
-- [ ] Docker
+- [X] Docker
+- [ ] LICENSE
 - [ ] Better error handling in the server
 - [ ] Move to shad-cn or any thing for a consist styling
 - [ ] Responsive (web)

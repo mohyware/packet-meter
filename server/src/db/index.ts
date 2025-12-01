@@ -8,12 +8,10 @@ import { createClient as createLibSqlClient } from '@libsql/client';
 import { schema, isSQLite } from './schema';
 import { DATABASE_URL } from '../config/env';
 
-const connectionString = DATABASE_URL;
-
 const db = (() => {
   if (isSQLite) {
     const libsqlClient = createLibSqlClient({
-      url: 'file:./packetMeterDB.db',
+      url: DATABASE_URL,
     });
 
     return drizzleLibSql(libsqlClient, {
@@ -21,7 +19,7 @@ const db = (() => {
     }) as unknown as PostgresJsDatabase<typeof schema>;
   }
 
-  return drizzlePostgres(postgres(connectionString, { prepare: false }), {
+  return drizzlePostgres(postgres(DATABASE_URL, { prepare: false }), {
     schema,
   });
 })();

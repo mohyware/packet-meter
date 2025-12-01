@@ -29,7 +29,16 @@ All required configuration variables are located in the server/.env
 
   - **Mail configuration** – update if you want the system to send email reports.
   - **Database** – SQLite is the default option.
-## 3. Server Setup
+
+## 3. Setup
+### Option A: Docker
+```bash
+docker compose up --build
+```
+### Option B: Manual Setup
+Build and start services:
+
+#### 1. Server Setup
 
 ```bash
 cd server
@@ -40,7 +49,7 @@ npm install
 # Rename .env.example to .env and add your configurations:
 ```
 
-### Initialize Database
+#### Initialize Database
 
 ```bash
 # Create database (only for postgresql)
@@ -53,7 +62,7 @@ npm run db:push
 npm run db:seed
 ```
 
-### Start Server
+#### Start Server
 
 ```bash
 # Development
@@ -64,7 +73,7 @@ npm run build
 npm start
 ```
 
-## 4. Web Dashboard Setup
+#### 2. Web Dashboard Setup
 
 ```bash
 cd web
@@ -82,7 +91,7 @@ npm run dev
 npm run build
 ```
 ## 5. Login
-You can now navigate to **http://localhost:3000** and sign in using the **TEST_USER_EMAIL** and **TEST_USER_PASSWORD** you configured in the server `.env`.
+You can now navigate to **http://localhost:3000** and sign in using `user@mail.com`, `123` or **TEST_USER_EMAIL** and **TEST_USER_PASSWORD** you configured in the server `.env`.
 
 ![Login](./assets/web/login.png)
 
@@ -102,14 +111,6 @@ See [Windows Daemon README](./client-pc/daemon-win/README.md) for installation i
 ### Android App
 
 See [Client Phone README](./client-phone/README.md) for installation instructions.
-
-## 7. Docker Deployment
-
-### Start Services
-
-```bash
-docker-compose up -d
-```
 
 ## Support
 
