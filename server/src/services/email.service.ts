@@ -50,6 +50,9 @@ function createTransporter(): Transporter | null {
       user: SMTP_USER,
       pass: SMTP_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
   });
 }
 
@@ -103,17 +106,20 @@ async function getDeviceStatsForUser(
   const totalUsage =
     deviceStats.reduce((sum, stat) => sum + stat.totalCombinedMB, 0) || 0;
 
-  if (totalUsage === 0) {
-    return deviceStats.map((stat) => ({
-      ...stat,
-      usagePercentage: 0,
-    }));
-  }
+  const statsWithPercentage =
+    totalUsage === 0
+      ? deviceStats.map((stat) => ({
+          ...stat,
+          usagePercentage: 0,
+        }))
+      : deviceStats.map((stat) => ({
+          ...stat,
+          usagePercentage: (stat.totalCombinedMB / totalUsage) * 100,
+        }));
 
-  return deviceStats.map((stat) => ({
-    ...stat,
-    usagePercentage: (stat.totalCombinedMB / totalUsage) * 100,
-  }));
+  return statsWithPercentage.sort(
+    (a, b) => b.totalCombinedMB - a.totalCombinedMB
+  );
 }
 
 /**
