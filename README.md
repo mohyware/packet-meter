@@ -1,61 +1,62 @@
-## Overview
-Packet Pilot is a cross-platform traffic monitoring and control system for PCs and phones connected in the same network that can be self-hosted.
+# PacketMeter
 
-### Features:
-- 📱 Clients (agents) running on PCs and phones that collect usage data.
-- 📊 Monitoring network traffic per device and per app.
-- 🌐 Server that aggregates all reports and stores usage logs.
-- 🖥️ Admin dashboard (web app) to visualize all connected devices usage in real-time.
-- 🔒 Admin can block specific apps or websites with firewall for specific devices.
+> Cross-platform network traffic monitoring system that can be self-hosted easily.
 
-## Architecture
+![PacketMeter Dashboard](./assets/main.png)
 
-- Client (service/agent)
-    - Runs on PCs and phones.
-    - Monitors per-app traffic usage (upload/download, active sessions).
-    - Sends periodic reports (JSON payloads) to the server.
-    - Listens for admin commands (e.g., “block Facebook” for a given device).
-    - On phones: Could be a background service (Android → foreground service with accessibility + VPN-based monitoring, iOS is more restricted).
+## Features
 
-- Server
-    - Central controller for all connected devices.
-    - Collects usage logs from clients.
-    - Stores in database for history/analytics.
-    - Issues block commands to clients.
-    - Handles authentication & admin roles.
+- 📱 **Multi-Device Support** - Monitor Windows, Linux, and Android devices from one dashboard
+- 📊 **Real-Time Analytics** - Track network usage per device and per application
+- 📧 **Email Reports** - Automated daily/weekly usage reports delivered to your inbox
+- 🔒 **Self-Hosted** - Full control over your data with complete privacy
+- 🎯 **Per-App Monitoring** - See exactly which apps consume your bandwidth
+- 📈 **Historical Data** - Track usage patterns over time with detailed charts
 
-- Admin GUI
-    - Web app dashboard.
-    - Shows devices → apps → usage stats (per time window).
-    - Control panel to block/unblock apps or limit usage.
-    - Charts (bandwidth, app categories, top apps, etc.).
+## Preview
 
-## Tech Stacks
-- Client (service on PC & Phone)
-    - For pc:
-        - Daemon
-            - Go → easy networking, smaller footprint, simpler than C++.
-            - For PC: Use OS APIs (Windows: ETW, Mac: NetworkExtension, Linux: netlink/iptables).
-        - Web App GUI
-            - Frontend:React + Tailwind for modern dashboard.
-            - Charts: Recharts, Chart.js, or Plotly.
-    - For Phone:
-        - Android: Use VPNService API → acts as a local VPN to capture per-app traffic.
-        - iOS: Very restrictive → need MDM (mobile device management) or supervised devices.
+### Web Dashboard
+![Web Dashboard](./assets/web/img1.png)
 
-- Server
-    - Backend:
-        - Go (Gin/Fiber) → efficient and lightweight.
-        - Node.js (NestJS/Express) → if you prefer JS/TS ecosystem.
-
-    - Database:
-        - sqlite
-        - Postgres → structured, reliable for analytics.
-        - ClickHouse → if you want high-performance traffic analytics at scale.
+<table width="100%">
+  <tr>
+    <td width="50%">
+      <img src="./assets/web/img2.png" width="100%">
+    </td>
+    <td width="50%">
+      <img src="./assets/web/img3.png" width="100%">
+    </td>
+  </tr>
+</table>
 
 
+### Mobile App
 
-- Communication
-    - gRPC → efficient binary protocol for server-client commands.
-    - WebSocket/MQTT → for real-time updates (app blocking, live stats).
-    - HTTPS REST → for bulk reporting.
+<table>
+  <tr>
+    <td><img src="./assets/client-phone/img3.jpg" width="250"></td>
+    <td><img src="./assets/client-phone/img4.jpg" width="250"></td>
+    <td><img src="./assets/client-phone/img2.jpg" width="250"></td>
+    <td><img src="./assets/client-phone/img1.jpg" width="250"></td>
+  </tr>
+</table>
+
+<!-- ### Email Reports
+![Email Report](./assets/web/mail.png) -->
+
+## How it works
+
+![Architecture](./assets/architecture.png)
+
+## Self-Hosting
+
+Want to host PacketMeter yourself? Check out [Installation Guide](./INSTALLATION_GUIDE.md) for detailed setup instructions.
+
+## TODOs & Contributions
+Prioritized tasks are listed in [TODO.md](./TODO.md). 
+
+Contributions are welcome! If you encounter issues or have questions, please open an issue on GitHub.
+
+## License
+
+Apache License - see [LICENSE](LICENSE) file for details.
