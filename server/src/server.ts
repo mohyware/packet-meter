@@ -15,6 +15,7 @@ import compression from 'compression';
 import cors from 'cors';
 import { Pool } from 'pg';
 import logger, { morganStream } from './utils/logger';
+import { getClientIp } from './utils/utils';
 import './db';
 
 // Import routes
@@ -35,10 +36,9 @@ const app = express();
 // CORS configuration
 app.use(
   cors({
-    origin:
-      NODE_ENV === 'production'
-        ? (process.env.FRONTEND_URL ?? 'http://localhost:3000')
-        : 'http://localhost:3000',
+    origin: function (origin, callback) {
+      callback(null, origin ?? true);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -48,9 +48,12 @@ app.use(
 // Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(compression());
-
+// Logger
+morgan.token('ip-addr', (req: Request) => `[${getClientIp(req)}]`);
+const morganFormat =
+  ':ip-addr :method :url :status :response-time ms - :date[clf]';
 app.use(
-  morgan(NODE_ENV === 'production' ? 'combined' : 'dev', {
+  morgan(morganFormat, {
     stream: morganStream,
   })
 );

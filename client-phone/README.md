@@ -8,6 +8,7 @@ Currently, the data is stored daily, not hourly, because this API doesn’t prov
   <tr>
     <td><img src="../assets/client-phone/img3.jpg" width="250"></td>
     <td><img src="../assets/client-phone/img4.jpg" width="250"></td>
+    <td><img src="../assets/client-phone/img2.jpg" width="250"></td>
     <td><img src="../assets/client-phone/img1.jpg" width="250"></td>
   </tr>
 </table>

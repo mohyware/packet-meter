@@ -5,7 +5,7 @@ import {
   hashDeviceToken,
   verifyDeviceToken,
 } from '../utils/auth';
-import { roundToUTCHour } from '../utils/timezone';
+import { roundToUTCHour, roundToUTCDay } from '../utils/timezone';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { startOfDay, subDays, startOfMonth, subMonths } from 'date-fns';
 
@@ -384,8 +384,9 @@ export async function deleteDevice(deviceId: string) {
 }
 
 /**
- * Create or update usage reports (one per app per UTC hour)
- * Stores reports grouped by UTC hour, with one record per app per hour
+ * Create or update usage reports (one per app per UTC hour/day)
+ * Stores reports grouped by UTC hour for non-Android devices, or UTC day for Android devices
+ * Returns reports and any missing app identifiers
  */
 export async function createOrUpdateUsageReport(data: {
   deviceId: string;
@@ -395,12 +396,25 @@ export async function createOrUpdateUsageReport(data: {
     totalRx: number;
     totalTx: number;
   }[];
-}) {
-  // Round timestamp to UTC hour for storage
-  const utcHour = roundToUTCHour(data.timestamp);
+}): Promise<{
+  reports: Awaited<ReturnType<typeof db.query.reports.findMany>>;
+  missingApps: string[];
+}> {
+  // Get device to check its type
+  const device = await getDeviceById(data.deviceId);
+  if (!device) {
+    throw new Error(`Device not found: ${data.deviceId}`);
+  }
+
+  // Round timestamp based on device type: Android uses daily, others use hourly
+  const roundedTimestamp =
+    device.deviceType === 'android'
+      ? roundToUTCDay(data.timestamp)
+      : roundToUTCHour(data.timestamp);
 
   // Create or update report for each app
   const createdReports = [];
+  const missingApps: string[] = [];
 
   for (const appData of data.apps) {
     // Find the app (it should already be registered, but find it anyway)
@@ -412,17 +426,16 @@ export async function createOrUpdateUsageReport(data: {
     });
 
     if (!app) {
-      throw new Error(
-        `App not found for device ${data.deviceId}, identifier: ${appData.identifier}`
-      );
+      missingApps.push(appData.identifier);
+      continue;
     }
 
-    // Check if report exists for this device, app, and UTC hour
+    // Check if report exists for this device, app, and UTC time period
     const existingReport = await db.query.reports.findFirst({
       where: and(
         eq(reports.deviceId, data.deviceId),
         eq(reports.appId, app.id),
-        eq(reports.timestamp, utcHour)
+        eq(reports.timestamp, roundedTimestamp)
       ),
     });
 
@@ -446,7 +459,7 @@ export async function createOrUpdateUsageReport(data: {
         .values({
           deviceId: data.deviceId,
           appId: app.id,
-          timestamp: utcHour,
+          timestamp: roundedTimestamp,
           totalRx: appData.totalRx.toString(),
           totalTx: appData.totalTx.toString(),
         })
@@ -456,5 +469,5 @@ export async function createOrUpdateUsageReport(data: {
     }
   }
 
-  return createdReports;
+  return { reports: createdReports, missingApps };
 }

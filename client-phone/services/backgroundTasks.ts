@@ -23,9 +23,9 @@ TaskManager.defineTask(
       }
 
       console.log('Running background total usage report...');
-      const success = await reportTotalUsage();
+      const result = await reportTotalUsage();
 
-      return success
+      return result.ok
         ? BackgroundFetch.BackgroundFetchResult.NewData
         : BackgroundFetch.BackgroundFetchResult.Failed;
     } catch (err) {
@@ -52,9 +52,9 @@ TaskManager.defineTask(
       }
 
       console.log('Running background per-process usage report...');
-      const success = await reportPerProcessUsage();
+      const result = await reportPerProcessUsage();
 
-      return success
+      return result.ok
         ? BackgroundFetch.BackgroundFetchResult.NewData
         : BackgroundFetch.BackgroundFetchResult.Failed;
     } catch (err) {

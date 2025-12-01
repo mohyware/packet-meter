@@ -1,3 +1,5 @@
+import { Request } from 'express';
+
 export function bytesToMB(bytes: number | string): number {
   if (typeof bytes === 'string') {
     bytes = parseFloat(bytes);
@@ -44,3 +46,11 @@ export function extractDeviceTypeFromUserAgent(
 
   return 'unknown';
 }
+
+export const getClientIp = (req: Request): string => {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.ip ?? req.socket.remoteAddress ?? 'unknown';
+};

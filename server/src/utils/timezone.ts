@@ -60,6 +60,19 @@ export function roundToUTCHour(date: Date): Date {
 }
 
 /**
+ * Round a date to the nearest UTC day (floor)
+ * Returns a new Date with hours, minutes, seconds, and milliseconds set to 0 in UTC
+ */
+export function roundToUTCDay(date: Date): Date {
+  const utcDate = new Date(date);
+  utcDate.setUTCHours(0);
+  utcDate.setUTCMinutes(0);
+  utcDate.setUTCSeconds(0);
+  utcDate.setUTCMilliseconds(0);
+  return utcDate;
+}
+
+/**
  * Get UTC hour range for a date in a local timezone
  * Returns start and end UTC hours that cover the entire day in the local timezone
  *

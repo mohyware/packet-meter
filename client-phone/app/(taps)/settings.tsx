@@ -187,10 +187,10 @@ export default function SettingsScreen() {
         setDeviceToken(token);
         setShowQRScanner(false);
 
-        const healthy = await healthCheck();
+        const healthResult = await healthCheck();
         Alert.alert(
-          healthy ? 'Device Token Updated' : 'Device Token Saved',
-          healthy
+          healthResult.ok ? 'Device Token Updated' : 'Device Token Saved',
+          healthResult.ok
             ? 'Device is connected. Waiting for approval from the server.'
             : 'Saved locally but the server did not respond. Please verify the address and try again.'
         );

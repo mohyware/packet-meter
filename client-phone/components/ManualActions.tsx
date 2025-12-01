@@ -22,19 +22,21 @@ export function ManualActions() {
     if (manualAction) return;
     setManualAction('health');
     try {
-      const ok = await healthCheck();
+      const result = await healthCheck();
       Alert.alert(
         'Health Check',
-        ok
+        result.ok
           ? 'Server responded successfully.'
-          : 'Health check failed. Please verify the server details.'
+          : result.error ||
+              'Health check failed. Please verify the server details.'
       );
     } catch (err) {
       console.error('Manual health check failed', err);
-      Alert.alert(
-        'Health Check',
-        'Unexpected error occurred. Please try again.'
-      );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Unexpected error occurred. Please try again.';
+      Alert.alert('Health Check', errorMessage);
     } finally {
       setManualAction(null);
     }
@@ -44,17 +46,20 @@ export function ManualActions() {
     if (manualAction) return;
     setManualAction('total');
     try {
-      const ok = await reportTotalUsage();
+      const result = await reportTotalUsage();
       Alert.alert(
         'Report Total Usage',
-        ok ? 'Report sent successfully.' : 'Failed to send total usage report.'
+        result.ok
+          ? 'Report sent successfully.'
+          : result.error || 'Failed to send total usage report.'
       );
     } catch (err) {
       console.error('Manual total usage report failed', err);
-      Alert.alert(
-        'Report Total Usage',
-        'Unexpected error occurred. Please try again.'
-      );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Unexpected error occurred. Please try again.';
+      Alert.alert('Report Total Usage', errorMessage);
     } finally {
       setManualAction(null);
     }
@@ -64,19 +69,20 @@ export function ManualActions() {
     if (manualAction) return;
     setManualAction('per');
     try {
-      const ok = await reportPerProcessUsage();
+      const result = await reportPerProcessUsage();
       Alert.alert(
         'Report Per App Usage',
-        ok
+        result.ok
           ? 'Per-app report sent successfully.'
-          : 'Failed to send per-app usage report.'
+          : result.error || 'Failed to send per-app usage report.'
       );
     } catch (err) {
       console.error('Manual per-app usage report failed', err);
-      Alert.alert(
-        'Report Per App Usage',
-        'Unexpected error occurred. Please try again.'
-      );
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : 'Unexpected error occurred. Please try again.';
+      Alert.alert('Report Per App Usage', errorMessage);
     } finally {
       setManualAction(null);
     }

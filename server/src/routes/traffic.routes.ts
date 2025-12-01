@@ -197,9 +197,9 @@ router.post(
       // Parse timestamp from report (device should send UTC timestamp)
       const timestampDate = new Date(report.Timestamp);
 
-      // Create reports in database (one per app, grouped by UTC hour)
-      // The timestamp will be rounded to UTC hour for storage
-      await deviceService.createOrUpdateUsageReport({
+      // Create reports in database (one per app, grouped by UTC hour/day)
+      // The timestamp will be rounded to UTC hour/day based on device type
+      const result = await deviceService.createOrUpdateUsageReport({
         deviceId: device.id,
         timestamp: timestampDate,
         apps: report.Apps.map((app) => ({
@@ -208,6 +208,15 @@ router.post(
           totalTx: app.TotalTx,
         })),
       });
+
+      if (result.missingApps.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'apps_not_found',
+          error: 'Some apps are not registered. Please register them first.',
+          missingApps: result.missingApps,
+        });
+      }
 
       // Calculate total for logging (convert bytes to MB)
       const totalRxBytes = report.Apps.reduce(
