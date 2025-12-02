@@ -10,7 +10,8 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getTheme, subscribe } from '@/hooks/theme-store';
 import React from 'react';
-import { registerBackgroundTasks } from '@/services/backgroundTasks';
+// import { registerBackgroundTasks } from '@/services/expoBackgroundTasks';
+import { startBackgroundActions } from '@/services/backgroundActions';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 export const unstable_settings = {
@@ -28,10 +29,17 @@ export default function RootLayout() {
     return unsub;
   }, []);
 
-  // Register background tasks with 15 minute interval
+  // expo-background-fetch (not used)
+  // React.useEffect(() => {
+  //   registerBackgroundTasks(15).catch((err) => {
+  //     console.error('Failed to register background tasks:', err);
+  //   });
+  // }, []);
+
+  // Start background actions with react-native-background-actions
   React.useEffect(() => {
-    registerBackgroundTasks(15).catch((err) => {
-      console.error('Failed to register background tasks:', err);
+    startBackgroundActions(15).catch((err) => {
+      console.error('Failed to start background actions:', err);
     });
   }, []);
 

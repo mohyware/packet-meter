@@ -18,6 +18,7 @@ import { ReporterSettingsCard } from '@/components/ReporterSettingsCard';
 import { DeviceTokenCard } from '@/components/DeviceTokenCard';
 import { PermissionsCard } from '@/components/PermissionsCard';
 import { ManualActions } from '@/components/ManualActions';
+import { BackgroundServiceCard } from '@/components/BackgroundServiceCard';
 import { CONNECTION_STATUS_META } from '@/constants/connections-status';
 
 export default function SettingsScreen() {
@@ -309,6 +310,7 @@ export default function SettingsScreen() {
           <>
             <ManualActions />
             <PermissionsCard />
+            <BackgroundServiceCard />
           </>
         )}
       </ScrollView>

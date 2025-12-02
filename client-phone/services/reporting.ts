@@ -43,7 +43,7 @@ export async function healthCheck(): Promise<{ ok: boolean; error?: string }> {
       {
         headers: {
           Authorization: `Bearer ${deviceToken}`,
-          'User-Agent': 'PacketMeter-android-Daemon/1.0',
+          'User-Agent': 'PacketMeter-android-Daemon/0.1.0',
         },
         timeout: REQUEST_TIMEOUT_MS,
       }
@@ -172,7 +172,7 @@ export async function reportTotalUsage(): Promise<{
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${deviceToken}`,
-        'User-Agent': 'PacketMeter-android-Daemon/1.0',
+        'User-Agent': 'PacketMeter-android-Daemon/0.1.0',
       },
       timeout: REQUEST_TIMEOUT_MS,
     });
@@ -282,7 +282,7 @@ export async function reportPerProcessUsage(): Promise<{
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${deviceToken}`,
-        'User-Agent': 'PacketMeter-android-Daemon/1.0',
+        'User-Agent': 'PacketMeter-android-Daemon/0.1.0',
       },
       timeout: REQUEST_TIMEOUT_MS,
     });
@@ -362,7 +362,7 @@ export async function reportPerProcessUsage(): Promise<{
                 headers: {
                   'Content-Type': 'application/json',
                   Authorization: `Bearer ${deviceToken}`,
-                  'User-Agent': 'PacketMeter-android-Daemon/1.0',
+                  'User-Agent': 'PacketMeter-android-Daemon/0.1.0',
                 },
                 timeout: REQUEST_TIMEOUT_MS,
               });
@@ -455,7 +455,7 @@ async function registerApps(
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${deviceToken}`,
-          'User-Agent': 'PacketMeter-android-Daemon/1.0',
+          'User-Agent': 'PacketMeter-android-Daemon/0.1.0',
         },
         timeout: REQUEST_TIMEOUT_MS,
       }

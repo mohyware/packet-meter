@@ -32,7 +32,7 @@ cd android
 ./gradlew assembleRelease    # For production
 ```
 
-APK will be in:
+You should see the output at:
 
 ```bash
 android/app/build/outputs/apk/debug/
