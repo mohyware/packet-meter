@@ -1,8 +1,8 @@
 ## TODOs:
 
-- [ ] Handle background reporting (client-phone)
+- [X] Handle background reporting (client-phone)
 - [X] Docker
-- [ ] LICENSE
+- [X] LICENSE
 - [ ] Linux daemon
 - [ ] Move to shad-cn for consistent styling
 - [ ] Responsive (web)
