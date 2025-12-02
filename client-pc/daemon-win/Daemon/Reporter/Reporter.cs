@@ -85,7 +85,7 @@ namespace Daemon.Reporter
             {
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/1.0");
+                request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/0.1.0");
 
                 _logger.Debug("Sending health check", "url", url);
 
@@ -260,7 +260,7 @@ namespace Daemon.Reporter
                     Content = content
                 };
                 request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/1.0");
+                request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/0.1.0");
 
                 _logger.Debug("Registering apps", "url", url, "apps_count", apps.Count);
 
@@ -300,7 +300,7 @@ namespace Daemon.Reporter
                         Content = content
                     };
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                    request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/1.0");
+                    request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/0.1.0");
 
                     var totalRxMB = (double)totalRx / (1024 * 1024);
                     var totalTxMB = (double)totalTx / (1024 * 1024);
@@ -384,7 +384,7 @@ namespace Daemon.Reporter
                         Content = content
                     };
                     request.Headers.Add("Authorization", $"Bearer {_config.ApiKey}");
-                    request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/1.0");
+                    request.Headers.Add("User-Agent", "PacketMeter-Windows-Daemon/0.1.0");
 
                     var totalRxMB = (double)totalRx / (1024 * 1024);
                     var totalTxMB = (double)totalTx / (1024 * 1024);

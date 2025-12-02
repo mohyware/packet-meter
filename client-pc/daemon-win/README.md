@@ -20,4 +20,6 @@ dotnet publish UI -c Release
 cd Installer
 dotnet build
 ```
-You should see the output at `client-pc/daemon-win/Installer/bin\x64\Debug\PacketMeter.msi`.
+You should see the output at:
+
+ ``client-pc/daemon-win/Installer/bin/x64/Debug/PacketMeter.msi``.
