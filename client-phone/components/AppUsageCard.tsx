@@ -34,7 +34,11 @@ export function AppUsageCard({ item, formatBytes }: AppUsageCardProps) {
           <Image source={{ uri: item.icon }} style={styles.appIcon} />
         )}
         <View style={styles.appInfo}>
-          <ThemedText style={styles.appName}>{item.appName}</ThemedText>
+          <ThemedText style={styles.appName}>
+            {item.appName.length > 20
+              ? `${item.appName.slice(0, 20)}...`
+              : item.appName}
+          </ThemedText>
           <ThemedText style={styles.packageName}>
             {item.packageName.length > 30
               ? `${item.packageName.slice(0, 30)}...`

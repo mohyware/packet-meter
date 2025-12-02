@@ -54,7 +54,7 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
      * Get network usage per app for a given period type and count.
      */
     @ReactMethod
-    public void getAppNetworkUsage(String period, int count, Promise promise) {
+    public void getAppNetworkUsage(String period, int count, boolean detailed, Promise promise) {
         if (!period.equals("hour") && !period.equals("day") && !period.equals("week") && !period.equals("month")) {
             promise.reject("ERR_INVALID_PERIOD", "Allowed values: hour, day, week, month");
             return;
@@ -96,7 +96,7 @@ public class NetworkUsageModule extends ReactContextBaseJavaModule {
                 // Skip only if it's a system app *and* has no launcher TODO: we need other
                 // optimizations ways as some services use network hence we need to add them to
                 // calcs
-                if ((isSystemApp || isUpdatedSystemApp) && !hasLauncher) {
+                if ((isSystemApp || isUpdatedSystemApp) && !hasLauncher && !detailed) {
                     continue;
                 }
                 String packageName = appInfo.packageName;

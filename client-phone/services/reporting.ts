@@ -243,7 +243,10 @@ export async function reportPerProcessUsage(): Promise<{
     return { ok: false, error };
   }
 
-  const apps = (await apiGetAppUsage('day', 1)) as AppUsageDataAPI[] | null;
+  const { detailedReports } = useReporterStore.getState();
+  const apps = (await apiGetAppUsage('day', 1, detailedReports)) as
+    | AppUsageDataAPI[]
+    | null;
   if (!apps || apps.length === 0) {
     const error = 'No per-app usage data available for the selected period.';
     return { ok: false, error };

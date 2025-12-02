@@ -26,11 +26,20 @@ export function useNetworkUsage() {
     }
   }, []);
 
+  const openUsageSettings = useCallback(async () => {
+    try {
+      await apiOpenUsageSettings();
+    } catch (error) {
+      console.error('Error opening settings:', error);
+      Alert.alert('Error', 'Failed to open settings');
+    }
+  }, []);
+
   const getAppNetworkUsage = useCallback(
-    async (period: string, count: number) => {
+    async (period: string, count: number, detailed: boolean = false) => {
       setLoading(true);
       try {
-        const usage = await apiGetAppUsage(period, count);
+        const usage = await apiGetAppUsage(period, count, detailed);
         setAppUsages(usage);
         return usage;
       } catch (e) {
@@ -58,7 +67,7 @@ export function useNetworkUsage() {
         setLoading(false);
       }
     },
-    []
+    [openUsageSettings]
   );
 
   const getTotalNetworkUsage = useCallback(
@@ -74,15 +83,6 @@ export function useNetworkUsage() {
     },
     []
   );
-
-  const openUsageSettings = useCallback(async () => {
-    try {
-      await apiOpenUsageSettings();
-    } catch (error) {
-      console.error('Error opening settings:', error);
-      Alert.alert('Error', 'Failed to open settings');
-    }
-  }, []);
 
   const formatBytes = useCallback((bytes: number): string => {
     if (bytes === 0) return '0 B';

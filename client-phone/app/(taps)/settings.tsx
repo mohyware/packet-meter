@@ -47,6 +47,8 @@ export default function SettingsScreen() {
     setIsSavingConfig,
     serverTarget,
     setServerTarget,
+    detailedReports,
+    setDetailedReports,
   } = useReporterStore();
 
   const [serverHostInput, setServerHostInput] = React.useState(serverHost);
@@ -308,6 +310,20 @@ export default function SettingsScreen() {
 
         {showAdvanced && (
           <>
+            <ThemedView style={styles.sectionCard}>
+              <ThemedText type="subtitle">Detailed Process Reports</ThemedText>
+              <View style={[styles.row, styles.justifyBetween]}>
+                <View style={styles.col}>
+                  <ThemedText>Include All Apps (may be slower)</ThemedText>
+                </View>
+                <Switch
+                  value={detailedReports}
+                  onValueChange={setDetailedReports}
+                  trackColor={{ false: '#cfcfcf', true: '#5355C4' }}
+                  thumbColor="#ffffff"
+                />
+              </View>
+            </ThemedView>
             <ManualActions />
             <PermissionsCard />
             <BackgroundServiceCard />

@@ -12,6 +12,7 @@ type ReporterState = {
   deviceToken: string | null;
   deviceStatus: DeviceStatus;
   isSavingConfig: boolean;
+  detailedReports: boolean;
 };
 
 type ReporterActions = {
@@ -23,6 +24,7 @@ type ReporterActions = {
   setDeviceToken: (token: string | null) => void;
   setDeviceStatus: (status: DeviceStatus) => void;
   setIsSavingConfig: (saving: boolean) => void;
+  setDetailedReports: (detailed: boolean) => void;
 };
 
 export const DEFAULT_HOST = process.env.EXPO_PUBLIC_SERVER_HOST || 'localhost';
@@ -40,6 +42,7 @@ export const useReporterStore = create<ReporterState & ReporterActions>()(
       deviceToken: null,
       deviceStatus: 'not_connected',
       isSavingConfig: false,
+      detailedReports: false,
 
       setServerHost: (serverHost) => set({ serverHost }),
       setServerPort: (serverPort) => set({ serverPort }),
@@ -49,6 +52,7 @@ export const useReporterStore = create<ReporterState & ReporterActions>()(
       setDeviceToken: (deviceToken) => set({ deviceToken }),
       setDeviceStatus: (deviceStatus) => set({ deviceStatus }),
       setIsSavingConfig: (isSavingConfig) => set({ isSavingConfig }),
+      setDetailedReports: (detailedReports) => set({ detailedReports }),
     }),
     {
       name: 'packetmeter.reporter-store',
@@ -61,6 +65,7 @@ export const useReporterStore = create<ReporterState & ReporterActions>()(
         serverTarget: state.serverTarget,
         deviceToken: state.deviceToken,
         deviceStatus: state.deviceStatus,
+        detailedReports: state.detailedReports,
       }),
     }
   )

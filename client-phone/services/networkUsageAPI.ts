@@ -9,10 +9,11 @@ export async function apiCheckPermission() {
 
 export async function apiGetAppUsage(
   period: string,
-  count: number
+  count: number,
+  detailed: boolean
 ): Promise<AppUsageDataAPI[]> {
   return JSON.parse(
-    await NetworkUsage.getAppNetworkUsage(period, count)
+    await NetworkUsage.getAppNetworkUsage(period, count, detailed)
   ) as AppUsageDataAPI[];
 }
 

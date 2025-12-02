@@ -19,7 +19,7 @@ const MODE_LABELS: Record<ReportMode, { title: string }> = {
     title: 'Total Usage',
   },
   'per-process': {
-    title: 'Per Process (Pro)',
+    title: 'Per Process',
   },
 };
 

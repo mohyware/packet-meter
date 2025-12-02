@@ -19,6 +19,7 @@ import { ThemedView } from '@/components/themed-view';
 import { TotalUsageHeaderSkeleton } from '@/components/TotalUsageHeaderSkeleton';
 import { AppUsageCardSkeleton } from '@/components/AppUsageCardSkeleton';
 import { AppUsageDataAPI } from '@/types/networkUsage';
+import { useReporterStore } from '@/store/useReporterStore';
 
 export default function HomeScreen() {
   const [selectedPeriod, setSelectedPeriod] = useState('day');
@@ -26,7 +27,7 @@ export default function HomeScreen() {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showToTop, setShowToTop] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
-
+  const { detailedReports } = useReporterStore();
   const listRef = useRef<FlatList<AppUsageDataAPI>>(null);
 
   const {
@@ -53,7 +54,7 @@ export default function HomeScreen() {
     if (!isInitialLoad && hasPermission) {
       setIsFetching(true);
       Promise.all([
-        getAppNetworkUsage(selectedPeriod, selectedCount),
+        getAppNetworkUsage(selectedPeriod, selectedCount, detailedReports),
         getTotalNetworkUsage(selectedPeriod, selectedCount),
       ]).finally(() => setIsFetching(false));
     }
@@ -64,6 +65,7 @@ export default function HomeScreen() {
     hasPermission,
     getAppNetworkUsage,
     getTotalNetworkUsage,
+    detailedReports,
   ]);
 
   const handlePeriodChange = useCallback(
@@ -81,17 +83,23 @@ export default function HomeScreen() {
   const handlePermissionGranted = useCallback(async () => {
     setIsFetching(true);
     await Promise.all([
-      getAppNetworkUsage(selectedPeriod, selectedCount),
+      getAppNetworkUsage(selectedPeriod, selectedCount, detailedReports),
       getTotalNetworkUsage(selectedPeriod, selectedCount),
     ]).finally(() => setIsFetching(false));
-  }, [getAppNetworkUsage, getTotalNetworkUsage, selectedPeriod, selectedCount]);
+  }, [
+    getAppNetworkUsage,
+    getTotalNetworkUsage,
+    selectedPeriod,
+    selectedCount,
+    detailedReports,
+  ]);
 
   const handleRetry = useCallback(async () => {
     const hasAccess = await checkPermission();
     if (hasAccess) {
       setIsFetching(true);
       await Promise.all([
-        getAppNetworkUsage(selectedPeriod, selectedCount),
+        getAppNetworkUsage(selectedPeriod, selectedCount, detailedReports),
         getTotalNetworkUsage(selectedPeriod, selectedCount),
       ]).finally(() => setIsFetching(false));
     }
@@ -101,6 +109,7 @@ export default function HomeScreen() {
     getTotalNetworkUsage,
     selectedPeriod,
     selectedCount,
+    detailedReports,
   ]);
 
   const showLoading = isFetching || isInitialLoad;
