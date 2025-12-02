@@ -49,7 +49,7 @@ export default function LandingPage() {
               className="px-6 py-3 bg-white text-indigo-900 font-semibold rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 min-w-[180px] justify-center"
             >
               <Terminal className="h-5 w-5" />
-              Linux
+              Linux (Soon)
             </a>
             <a
               href={import.meta.env.VITE_ANDROID_DOWNLOAD_URL}
