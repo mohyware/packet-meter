@@ -240,38 +240,40 @@ export async function getDeviceReports(
   // Use UTC methods since timestamps are stored in UTC and rounded to hour boundaries
   let startDate: Date | undefined;
   let endDate: Date | undefined;
+  if (isAndroid) {
+    period = 'days';
+    count = 1;
+  }
   if (period && count && count > 0) {
     const now = new Date();
-
     switch (period) {
       case 'hours': {
-        if (isAndroid) {
-          // For Android, reports are by day, so we return "last 24 hours" regardless of the count
-          const currentDay = roundToUTCDay(now);
-          startDate = new Date(currentDay);
-          endDate = new Date(currentDay);
-          endDate.setUTCDate(endDate.getUTCDate() + 1);
-        } else {
-          // For "last N hours", we want the current hour plus the previous (N-1) hours
-          const currentHour = roundToUTCHour(now);
-          startDate = new Date(currentHour);
-          startDate.setUTCHours(startDate.getUTCHours() - (count - 1));
-          endDate = new Date(currentHour);
-          endDate.setUTCHours(endDate.getUTCHours() + 1);
-          endDate.setUTCMinutes(0);
-          endDate.setUTCSeconds(0);
-          endDate.setUTCMilliseconds(0);
-        }
+        // For "last N hours", we want the current hour plus the previous (N-1) hours
+        const currentHour = roundToUTCHour(now);
+        startDate = new Date(currentHour);
+        startDate.setUTCHours(startDate.getUTCHours() - (count - 1));
+        endDate = new Date(currentHour);
+        endDate.setUTCHours(endDate.getUTCHours() + 1);
+        endDate.setUTCMinutes(0);
+        endDate.setUTCSeconds(0);
+        endDate.setUTCMilliseconds(0);
         break;
       }
       case 'days': {
-        // For "last N days", we want the current day plus the previous (N-1) days
-        // Use timezone-aware calculation: get start of current day in user's timezone,
-        const nowInTimezone = toZonedTime(now, timezone);
-        const startOfCurrentDay = startOfDay(nowInTimezone);
-        const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
-        // Convert back to UTC for comparison with database timestamps (stored in UTC)
-        startDate = fromZonedTime(startOfTargetDay, timezone);
+        if (isAndroid) {
+          endDate = new Date(now);
+          startDate = new Date(now);
+          startDate.setTime(startDate.getTime() - count * 24 * 60 * 60 * 1000);
+          startDate = roundToUTCDay(startDate); // As android reports by day
+        } else {
+          // For "last N days", we want the current day plus the previous (N-1) days
+          // Use timezone-aware calculation: get start of current day in user's timezone,
+          const nowInTimezone = toZonedTime(now, timezone);
+          const startOfCurrentDay = startOfDay(nowInTimezone);
+          const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
+          // Convert back to UTC for comparison with database timestamps (stored in UTC)
+          startDate = fromZonedTime(startOfTargetDay, timezone);
+        }
         break;
       }
       case 'months': {

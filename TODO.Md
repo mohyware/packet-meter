@@ -1,15 +1,14 @@
 ## TODOs:
 
-- [ ] Handle data better in the front end especially total usage 
-- [ ] Ubuntu service
 - [ ] Handle background reporting (client-phone)
 - [X] Docker
 - [ ] LICENSE
-- [ ] Better error handling in the server
-- [ ] Move to shad-cn or any thing for a consist styling
+- [ ] Linux daemon
+- [ ] Move to shad-cn for consistent styling
 - [ ] Responsive (web)
-- [ ] Scan devices on the network and tell user there is still devices not added
+- [ ] Scan all connected devices on the network
+- [ ] Check if added device id already exist 
 - [ ] Enhance client state management 
-- [ ] Check if added device id exist 
+- [ ] Better error handling in the server
 - [ ] Dark mode (web)
 - [ ] More stats (web)

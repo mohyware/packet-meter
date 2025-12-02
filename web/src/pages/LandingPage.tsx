@@ -66,7 +66,7 @@ export default function LandingPage() {
             <a
               href={import.meta.env.VITE_PROJECT_GITHUB_URL}
               target="_blank"
-              className="px-5 py-2.5 bg-black/60 backdrop-blur-sm border border-white/20 text-white font-medium rounded-lg hover:bg-black/40 transition-all flex items-center gap-2 text-sm"
+              className="px-5 py-2.5 bg-black/60 backdrop-blur-sm border border-white/20 text-white font-medium rounded-lg hover:bg-black/50 transition-all flex items-center gap-2 text-sm"
             >
               <Github className="h-4 w-4" />
               Star on GitHub
@@ -74,7 +74,7 @@ export default function LandingPage() {
             <a
               href={import.meta.env.VITE_SPONSOR_URL}
               target="_blank"
-              className="px-5 py-2.5 bg-pink-500/90 backdrop-blur-sm border border-pink-400/30 text-white font-medium rounded-lg hover:bg-pink-500 transition-all flex items-center gap-2 text-sm"
+              className="px-5 py-2.5 bg-pink-500/90 backdrop-blur-sm border border-pink-400/30 text-white font-medium rounded-lg hover:bg-pink-500/70 transition-all flex items-center gap-2 text-sm"
             >
               <Heart className="h-4 w-4 fill-current" />
               Sponsor
