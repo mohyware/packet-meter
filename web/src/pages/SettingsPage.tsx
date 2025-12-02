@@ -16,8 +16,7 @@ export default function SettingsPage() {
     isUpdating: isSavingSettings,
     updateSettingsAsync,
   } = useSettings();
-  const [earlyAccessEmail, setEarlyAccessEmail] = useState('');
-  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
+  // const [earlyAccessEmail, setEarlyAccessEmail] = useState('');
   const [clearIntervalDays, setClearIntervalDays] = useState(1);
   const [emailIntervalDays, setEmailIntervalDays] = useState(1);
   const [emailReportsEnabled, setEmailReportsEnabled] = useState(false);
@@ -111,7 +110,7 @@ export default function SettingsPage() {
         onSaveSettings={handleSettingsSubmit}
       />
 
-      <div className="grid gap-6 mb-8">
+      {/* <div className="grid gap-6 mb-8">
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-6 space-y-4">
           <div>
             <h2 className="text-xl font-semibold text-indigo-900 mb-2">
@@ -169,32 +168,7 @@ export default function SettingsPage() {
             </button>
           </form>
         </div>
-      </div>
-
-      {/* TODO: remove this */}
-      <div>
-        <button
-          onClick={async () => {
-            setIsSendingTestEmail(true);
-            try {
-              await sendTestEmail();
-              toast.success('Test email queued successfully.');
-            } catch (error: unknown) {
-              console.error(error);
-              toast.error('Failed to send test email.');
-            } finally {
-              setIsSendingTestEmail(false);
-            }
-          }}
-          disabled={isSendingTestEmail}
-          className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isSendingTestEmail ? 'Sending...' : 'Send Test Email'}
-        </button>
-        <p className="mt-2 text-xs text-gray-500">
-          Sends a sample device stats email to your account address.
-        </p>
-      </div>
+      </div> */}
     </div>
   );
 }
@@ -271,6 +245,7 @@ function AccountPlanCard({
   isFreePlan,
   onSaveSettings,
 }: AccountPlanCardProps) {
+  const [isSendingTestEmail, setIsSendingTestEmail] = useState(false);
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-6 mb-8">
       <div className="space-y-6">
@@ -372,13 +347,34 @@ function AccountPlanCard({
         </div>
       </div>
 
-      <button
-        onClick={onSaveSettings}
-        disabled={isSettingsLoading || isSavingSettings || isFreePlan}
-        className="w-full rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
-      >
-        {isSavingSettings ? 'Saving...' : 'Save settings'}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={onSaveSettings}
+          disabled={isSettingsLoading || isSavingSettings || isFreePlan}
+          className="rounded-md bg-[#5355C4] px-4 py-2 text-sm font-medium text-white hover:bg-[#5355C4]/80 transition-colors disabled:opacity-60"
+        >
+          {isSavingSettings ? 'Saving...' : 'Save settings'}
+        </button>
+
+        <button
+          onClick={async () => {
+            setIsSendingTestEmail(true);
+            try {
+              await sendTestEmail();
+              toast.success('Test email queued successfully.');
+            } catch (error: unknown) {
+              console.error(error);
+              toast.error('Failed to send test email.');
+            } finally {
+              setIsSendingTestEmail(false);
+            }
+          }}
+          disabled={isSendingTestEmail}
+          className="px-4 py-2 text-sm font-medium text-white bg-[#5355C4] rounded-lg hover:bg-[#5355C4]/80 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isSendingTestEmail ? 'Sending...' : 'Send a test email'}
+        </button>
+      </div>
     </div>
   );
 }

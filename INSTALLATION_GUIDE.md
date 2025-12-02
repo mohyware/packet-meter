@@ -11,7 +11,7 @@ Complete guide to self-host PacketMeter.
 ## 1. Clone Repository
 
 ```bash
-git clone https://github.com/mohyware/PacketMeter.git
+git clone https://github.com/mohyware/packet-meter.git
 cd PacketMeter
 ```
 

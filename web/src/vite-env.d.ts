@@ -12,6 +12,7 @@ interface ImportMetaEnv {
     readonly VITE_PORTFOLIO_URL: string
     readonly VITE_JOIN_METHOD: string
     readonly VITE_NODE_ENV: string
+    readonly VITE_SPONSOR_URL: string
 }
 
 interface ImportMeta {

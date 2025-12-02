@@ -2,7 +2,7 @@ import { useDeviceReportsStore } from '../stores/deviceReportsStore';
 import { AppIcon } from '../utils/appIcon';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Info, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 export function AppUsageBars() {
   const { selectedReport, allAppsReport, setSelectedReport } =
@@ -36,8 +36,16 @@ export function AppUsageBars() {
 
   // Locked state
   if (!hasPerProcessAccess) {
-    const totalRx = bytesToMB(report.totalRx);
-    const totalTx = bytesToMB(report.totalTx);
+    // Get totals from the app with identifier "total-usage"
+    const totalUsageApp = report.apps.find(
+      (app) => app.identifier === 'total-usage'
+    );
+    const totalRx = totalUsageApp
+      ? bytesToMB(totalUsageApp.totalRx)
+      : bytesToMB(report.totalRx);
+    const totalTx = totalUsageApp
+      ? bytesToMB(totalUsageApp.totalTx)
+      : bytesToMB(report.totalTx);
     const totalCombined = totalRx + totalTx;
 
     return (
@@ -61,7 +69,7 @@ export function AppUsageBars() {
             <span className="text-xs text-gray-600 uppercase tracking-wide">
               Total Received
             </span>
-            <span className="text-lg font-semibold text-blue-600">
+            <span className="text-lg font-semibold text-[#5355C4]">
               {formatMB(totalRx)}
             </span>
           </div>
@@ -105,27 +113,36 @@ export function AppUsageBars() {
     );
   }
 
-  const apps = [...report.apps]
-    .map((app) => ({
-      id: app.id,
-      identifier: app.identifier,
-      displayName: app.displayName,
-      iconHash: app.iconHash,
-      name:
-        app.identifier === 'total-usage'
-          ? 'Untracked Usage'
-          : (app.displayName ?? app.identifier),
-      isUntracked: app.identifier === 'total-usage',
-      rx: bytesToMB(app.totalRx),
-      tx: bytesToMB(app.totalTx),
-      total: bytesToMB(app.totalRx) + bytesToMB(app.totalTx),
-    }))
+  let totalUsageRx: string | null = null;
+  let totalUsageTx: string | null = null;
+  const apps = report.apps
+    .map((app) => {
+      if (app.identifier === 'total-usage') {
+        totalUsageRx = app.totalRx;
+        totalUsageTx = app.totalTx;
+        return null; // Filter this out
+      }
+      return {
+        id: app.id,
+        identifier: app.identifier,
+        displayName: app.displayName,
+        iconHash: app.iconHash,
+        name: app.displayName ?? app.identifier,
+        rx: bytesToMB(app.totalRx),
+        tx: bytesToMB(app.totalTx),
+        total: bytesToMB(app.totalRx) + bytesToMB(app.totalTx),
+      };
+    })
+    .filter((app): app is NonNullable<typeof app> => app !== null)
     .sort((a, b) => b.total - a.total);
 
-  // TODO: need to be cached
-  // Calculate total usage of all apps
-  const totalRx = bytesToMB(report.totalRx);
-  const totalTx = bytesToMB(report.totalTx);
+  // Get totals from the total-usage app, fallback to report totals
+  const totalRx = totalUsageRx
+    ? bytesToMB(totalUsageRx)
+    : bytesToMB(report.totalRx);
+  const totalTx = totalUsageTx
+    ? bytesToMB(totalUsageTx)
+    : bytesToMB(report.totalTx);
   const totalCombined = totalRx + totalTx;
 
   const renderProgressBar = (
@@ -152,7 +169,7 @@ export function AppUsageBars() {
             {/* Download (blue) - portion of this app's bar */}
             {download > 0 && (
               <div
-                className="absolute left-0 top-0 h-full bg-blue-500 transition-all"
+                className="absolute left-0 top-0 h-full bg-[#5355C4] transition-all"
                 style={{
                   width: `${downloadPercentOfApp}%`,
                   minWidth: download > 0 ? '1px' : '0',
@@ -163,7 +180,7 @@ export function AppUsageBars() {
             {/* Upload (green) - portion of this app's bar, after download */}
             {upload > 0 && (
               <div
-                className="absolute top-0 h-full bg-green-500 transition-all"
+                className="absolute top-0 h-full bg-green-600 transition-all"
                 style={{
                   left: `${downloadPercentOfApp}%`,
                   width: `${uploadPercentOfApp}%`,
@@ -201,7 +218,7 @@ export function AppUsageBars() {
           <span className="text-xs text-gray-600 uppercase tracking-wide">
             Total Received
           </span>
-          <span className="text-lg font-semibold text-blue-600">
+          <span className="text-lg font-semibold text-[#5355C4]">
             {formatMB(totalRx)}
           </span>
         </div>
@@ -224,51 +241,46 @@ export function AppUsageBars() {
       </div>
 
       <div className="space-y-4">
-        {apps.map((app, index) => {
-          const downloadStr = formatMB(app.rx);
-          const uploadStr = formatMB(app.tx);
+        {apps.length > 0 ? (
+          apps.map((app, index) => {
+            const downloadStr = formatMB(app.rx);
+            const uploadStr = formatMB(app.tx);
 
-          return (
-            <div
-              key={app.id || index}
-              className="flex items-center gap-4 py-3 border-b border-gray-200 last:border-0"
-            >
-              <AppIcon
-                identifier={app.identifier}
-                displayName={app.displayName}
-                iconHash={app.iconHash}
-                size={30}
-                className="mr-2"
-              />
-              <div className="w-48 min-w-48 flex-shrink-0">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="font-medium text-gray-800 truncate"
-                    title={app.name}
-                  >
-                    {app.name}
-                  </div>
-                  {app.isUntracked && (
-                    <div className="relative group">
-                      <Info className="w-4 h-4 text-gray-400 hover:text-gray-600 flex-shrink-0" />
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block z-10 w-56 p-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-normal">
-                        Usage before enabling per process track
-                        <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                      </div>
+            return (
+              <div
+                key={app.id || index}
+                className="flex items-center gap-4 py-3 border-b border-gray-200 last:border-0"
+              >
+                <AppIcon
+                  identifier={app.identifier}
+                  displayName={app.displayName}
+                  iconHash={app.iconHash}
+                  size={30}
+                  className="mr-2"
+                />
+                <div className="w-48 min-w-48 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="font-medium text-gray-800 truncate"
+                      title={app.name}
+                    >
+                      {app.name}
                     </div>
-                  )}
+                  </div>
+                </div>
+                {renderProgressBar(app.rx, app.tx, app.total, totalCombined)}
+                <div className="text-sm text-gray-700 whitespace-nowrap font-mono flex-shrink-0 ml-4">
+                  <span className="text-[#5355C4]">{downloadStr}</span>
+                  <span className="mx-1 text-gray-400">/</span>
+                  <span className="text-green-600">{uploadStr}</span>
+                  <span className="ml-2 text-gray-500">↑↓</span>
                 </div>
               </div>
-              {renderProgressBar(app.rx, app.tx, app.total, totalCombined)}
-              <div className="text-sm text-gray-700 whitespace-nowrap font-mono flex-shrink-0 ml-4">
-                <span className="text-blue-600">{downloadStr}</span>
-                <span className="mx-1 text-gray-400">/</span>
-                <span className="text-green-600">{uploadStr}</span>
-                <span className="ml-2 text-gray-500">↑↓</span>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <div className="text-gray-500 text-center py-4">No apps found</div>
+        )}
       </div>
     </div>
   );

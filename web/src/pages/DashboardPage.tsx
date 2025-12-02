@@ -263,7 +263,7 @@ export default function DashboardPage() {
               setShowCreateForm(!showCreateForm);
             }}
             disabled={isAtDeviceLimit && !showCreateForm}
-            className="px-6 py-3 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-[#5355C4] text-white text-sm font-medium rounded-lg hover:bg-[#5355C4]/80 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {showCreateForm ? 'Cancel' : '+ Add Device'}
           </button>
@@ -471,7 +471,7 @@ export default function DashboardPage() {
                         <span className="text-xs text-gray-600 uppercase tracking-wide">
                           Total Usage
                         </span>
-                        <span className="text-lg font-bold text-blue-600">
+                        <span className="text-lg font-bold text-[#5355C4]">
                           {formatMB(deviceUsage.totalUsageMB)}
                         </span>
                       </div>
@@ -489,7 +489,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
-                              className="bg-blue-600 h-2 rounded-full transition-all"
+                              className="bg-[#5355C4] h-2 rounded-full transition-all"
                               style={{
                                 width: `${(deviceUsage.totalUsageMB / usageStats.totalUsageMB) * 100}%`,
                               }}
@@ -498,7 +498,7 @@ export default function DashboardPage() {
                         </div>
                       )}
                       <div className="text-xs flex justify-between">
-                        <div className="text-blue-600">
+                        <div className="text-[#5355C4]">
                           ↓ {formatMB(deviceUsage.totalRxMB)}
                         </div>
                         <div className="text-green-600">

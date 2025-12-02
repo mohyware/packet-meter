@@ -112,11 +112,11 @@ namespace Daemon.Reporter
 
         private async Task SendReportAsync()
         {
-            if (_reportMode == ReporterMode.TotalUsage)
-            {
-                await CreateTotalUsagePayload();
-            }
-            else
+            // Always send total usage report
+            await CreateTotalUsagePayload();
+
+            // If per-process mode is enabled, also send per-process report
+            if (_reportMode == ReporterMode.PerProcess)
             {
                 await CreatePerProcessUsagePayload();
             }

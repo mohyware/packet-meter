@@ -232,6 +232,10 @@ export async function getDeviceReports(
   period?: 'hours' | 'days' | 'months',
   count?: number
 ) {
+  // Get device to check its type (Android reports by day, others by hour)
+  const device = await getDeviceById(deviceId);
+  const isAndroid = device?.deviceType === 'android';
+
   // Calculate start date based on period and count
   // Use UTC methods since timestamps are stored in UTC and rounded to hour boundaries
   let startDate: Date | undefined;
@@ -241,15 +245,23 @@ export async function getDeviceReports(
 
     switch (period) {
       case 'hours': {
-        // For "last N hours", we want the current hour plus the previous (N-1) hours
-        const currentHour = roundToUTCHour(now);
-        startDate = new Date(currentHour);
-        startDate.setUTCHours(startDate.getUTCHours() - (count - 1));
-        endDate = new Date(currentHour);
-        endDate.setUTCHours(endDate.getUTCHours() + 1);
-        endDate.setUTCMinutes(0);
-        endDate.setUTCSeconds(0);
-        endDate.setUTCMilliseconds(0);
+        if (isAndroid) {
+          // For Android, reports are by day, so we return "last 24 hours" regardless of the count
+          const currentDay = roundToUTCDay(now);
+          startDate = new Date(currentDay);
+          endDate = new Date(currentDay);
+          endDate.setUTCDate(endDate.getUTCDate() + 1);
+        } else {
+          // For "last N hours", we want the current hour plus the previous (N-1) hours
+          const currentHour = roundToUTCHour(now);
+          startDate = new Date(currentHour);
+          startDate.setUTCHours(startDate.getUTCHours() - (count - 1));
+          endDate = new Date(currentHour);
+          endDate.setUTCHours(endDate.getUTCHours() + 1);
+          endDate.setUTCMinutes(0);
+          endDate.setUTCSeconds(0);
+          endDate.setUTCMilliseconds(0);
+        }
         break;
       }
       case 'days': {
@@ -288,7 +300,7 @@ export async function getDeviceReports(
   const filteredReports = startDate
     ? allReports.filter((report) => {
         if (period === 'hours' && endDate) {
-          // For hours, compare timestamps directly but ensure we're working with hour boundaries
+          // For hours compare timestamps directly
           const reportTime = report.timestamp.getTime();
           const startTime = startDate.getTime();
           const endTime = endDate.getTime();
@@ -299,8 +311,8 @@ export async function getDeviceReports(
       })
     : allReports;
 
-  // Group by UTC hour and aggregate
-  const reportsByHour = new Map<
+  // Group by UTC hour/day and aggregate
+  const reportsByPeriod = new Map<
     string,
     {
       timestamp: Date;
@@ -318,9 +330,10 @@ export async function getDeviceReports(
   >();
 
   for (const report of filteredReports) {
-    const hourKey = report.timestamp.toISOString();
-    if (!reportsByHour.has(hourKey)) {
-      reportsByHour.set(hourKey, {
+    // Since timestamps are already rounded when stored, we can use them directly
+    const periodKey = report.timestamp.toISOString();
+    if (!reportsByPeriod.has(periodKey)) {
+      reportsByPeriod.set(periodKey, {
         timestamp: report.timestamp,
         apps: [],
         totalRxBytes: BigInt(0),
@@ -328,11 +341,11 @@ export async function getDeviceReports(
       });
     }
 
-    const hourReport = reportsByHour.get(hourKey)!;
+    const periodReport = reportsByPeriod.get(periodKey)!;
     const rxBytes = BigInt(report.totalRx);
     const txBytes = BigInt(report.totalTx);
 
-    hourReport.apps.push({
+    periodReport.apps.push({
       id: report.appId,
       identifier: report.app.identifier,
       displayName: report.app.displayName,
@@ -340,12 +353,12 @@ export async function getDeviceReports(
       totalRx: report.totalRx,
       totalTx: report.totalTx,
     });
-    hourReport.totalRxBytes += rxBytes;
-    hourReport.totalTxBytes += txBytes;
+    periodReport.totalRxBytes += rxBytes;
+    periodReport.totalTxBytes += txBytes;
   }
 
   // Convert to array and sort by timestamp (descending)
-  const result = Array.from(reportsByHour.values())
+  const result = Array.from(reportsByPeriod.values())
     .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
     .slice(0, limit)
     .map((report) => ({

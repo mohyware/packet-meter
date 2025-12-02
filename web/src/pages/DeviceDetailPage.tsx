@@ -204,7 +204,7 @@ export default function DeviceDetailPage() {
             <TimePeriodSelector />
             <button
               onClick={startEdit}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-[#5355C4] text-white text-sm font-medium rounded hover:bg-[#5355C4]/80 transition-colors"
             >
               Edit Name
             </button>

@@ -16,6 +16,7 @@ import {
   Terminal,
   Zap,
   ExternalLink,
+  Heart,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -31,40 +32,56 @@ export default function LandingPage() {
             PacketMeter helps you track and manage network usage across your PC,
             laptop, and mobile devices in one centralized dashboard.
           </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href={import.meta.env.VITE_PROJECT_GITHUB_URL}
-              target="_blank"
-              className="px-4 py-3 bg-black/60 text-white font-semibold rounded-full shadow-lg hover:-translate-y-0.5 transition-transform flex items-center gap-2"
-            >
-              <Github className="h-6 w-6" />
-              View on GitHub
-            </a>
+
+          {/* Primary CTA - Downloads */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
             <a
               href={import.meta.env.VITE_WINDOWS_DOWNLOAD_URL}
               target="_blank"
-              className="px-6 py-3 bg-white text-indigo-900 font-semibold rounded-full shadow-lg hover:-translate-y-0.5 transition-transform flex items-center gap-2"
+              className="px-6 py-3 bg-white text-indigo-900 font-semibold rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 min-w-[180px] justify-center"
             >
               <Monitor className="h-5 w-5" />
-              Download For Windows
+              Windows
             </a>
             <a
               href={import.meta.env.VITE_LINUX_DOWNLOAD_URL}
               target="_blank"
-              className="px-6 py-3 bg-white/80 text-indigo-700 font-semibold rounded-full shadow-lg hover:-translate-y-0.5 transition-transform flex items-center gap-2"
+              className="px-6 py-3 bg-white text-indigo-900 font-semibold rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 min-w-[180px] justify-center"
             >
               <Terminal className="h-5 w-5" />
-              Download For Linux
+              Linux
             </a>
             <a
               href={import.meta.env.VITE_ANDROID_DOWNLOAD_URL}
               target="_blank"
-              className="px-6 py-3 bg-green-300 text-indigo-900 font-semibold rounded-full shadow-lg hover:-translate-y-0.5 transition-transform flex items-center gap-2"
+              className="px-6 py-3 bg-white text-indigo-900 font-semibold rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all flex items-center gap-2 min-w-[180px] justify-center"
             >
               <Smartphone className="h-5 w-5" />
-              Download For Android
+              Android
             </a>
           </div>
+
+          {/* Secondary Actions */}
+          <div className="flex items-center justify-center gap-3">
+            <a
+              href={import.meta.env.VITE_PROJECT_GITHUB_URL}
+              target="_blank"
+              className="px-5 py-2.5 bg-black/60 backdrop-blur-sm border border-white/20 text-white font-medium rounded-lg hover:bg-black/40 transition-all flex items-center gap-2 text-sm"
+            >
+              <Github className="h-4 w-4" />
+              Star on GitHub
+            </a>
+            <a
+              href={import.meta.env.VITE_SPONSOR_URL}
+              target="_blank"
+              className="px-5 py-2.5 bg-pink-500/90 backdrop-blur-sm border border-pink-400/30 text-white font-medium rounded-lg hover:bg-pink-500 transition-all flex items-center gap-2 text-sm"
+            >
+              <Heart className="h-4 w-4 fill-current" />
+              Sponsor
+            </a>
+          </div>
+
+          {/* Features Section */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 mt-12">
             <div className="bg-white/10 backdrop-blur-lg p-8 rounded-xl border border-white/20 text-center flex flex-col items-center">
               <GitFork className="h-12 w-12 mb-4" />
@@ -157,7 +174,7 @@ export default function LandingPage() {
           </p>
 
           {/* Main Hero Image */}
-          <div className="mb-16">
+          <div className="mb-16 max-w-4xl mx-auto">
             <div className="rounded-2xl overflow-hidden shadow-2xl hover:shadow-3xl transition-all duration-300">
               <img
                 src="/assets/web/img1.png"
@@ -225,7 +242,7 @@ export default function LandingPage() {
           </div>
 
           {/* Email Reports Section */}
-          <div>
+          {/* <div>
             <div className="flex items-center justify-center gap-3 mb-8">
               <MailOpen className="h-7 w-7 text-indigo-600" />
               <h3 className="text-3xl font-bold text-gray-800">
@@ -241,7 +258,7 @@ export default function LandingPage() {
                 />
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </section>
 

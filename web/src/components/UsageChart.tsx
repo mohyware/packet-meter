@@ -147,8 +147,8 @@ export function UsageChart() {
       {
         label: 'Total Usage (MB)',
         data: totalData,
-        borderColor: 'rgb(59, 130, 246)',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: '#5355C4',
+        backgroundColor: 'rgba(83, 85, 196, 0.1)',
         fill: true,
         pointRadius: 6,
         pointHoverRadius: 8,
