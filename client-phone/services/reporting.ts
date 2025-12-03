@@ -14,7 +14,7 @@ import {
 } from '@/services/networkUsageAPI';
 import axios, { AxiosError, isAxiosError } from 'axios';
 
-const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
+const REQUEST_TIMEOUT_MS = 5000; // 5 seconds
 
 function setStatus(status: DeviceStatus) {
   useReporterStore.setState({ deviceStatus: status });
