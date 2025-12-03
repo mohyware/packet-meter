@@ -44,7 +44,7 @@ export default function Header() {
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-4 flex justify-between items-center">
           <Link
             to="/"
-            className="text-2xl font-bold text-gray-800 hover:text-blue-600 transition-colors"
+            className="text-2xl font-bold text-gray-800 hover:text-[#5355C4] transition-colors"
           >
             PacketMeter
           </Link>
