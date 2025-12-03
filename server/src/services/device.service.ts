@@ -5,11 +5,7 @@ import {
   hashDeviceToken,
   verifyDeviceToken,
 } from '../utils/auth';
-import {
-  roundToUTCHour,
-  roundToUTCDay,
-  roundToUTCMonth,
-} from '../utils/timezone';
+import { roundToUTCHour, roundToUTCDay } from '../utils/timezone';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { startOfDay, subDays, startOfMonth, subMonths } from 'date-fns';
 
@@ -247,8 +243,7 @@ export async function getDeviceReports(
 
   // Get Last 24 hours as its per day anyway for android
   if (isAndroid && period === 'hours') {
-    period = 'days';
-    count = 1;
+    count = 24;
   }
 
   if (period && count && count > 0) {
@@ -274,9 +269,6 @@ export async function getDeviceReports(
         const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
         // Convert back to UTC for comparison with database timestamps (stored in UTC)
         startDate = fromZonedTime(startOfTargetDay, timezone);
-        if (isAndroid) {
-          startDate = roundToUTCDay(startDate); // As android reports by day
-        }
         break;
       }
       case 'months': {
@@ -284,9 +276,6 @@ export async function getDeviceReports(
         const startOfCurrentMonth = startOfMonth(nowInTimezone);
         const startOfTargetMonth = subMonths(startOfCurrentMonth, count - 1);
         startDate = fromZonedTime(startOfTargetMonth, timezone);
-        if (isAndroid) {
-          startDate = roundToUTCMonth(startDate); // As android reports by day
-        }
         break;
       }
     }
