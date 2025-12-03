@@ -22,7 +22,7 @@ import {
 export default function LandingPage() {
   return (
     <div className="w-full min-h-screen">
-      <section className="bg-gradient-to-br from-indigo-500 via-purple-500 to-purple-600 text-white py-24 px-4 sm:px-8 text-center">
+      <section className="bg-gradient-to-br from-[#5355C4] via-purple-500 to-[#5355C4]/80 text-white py-24 px-4 sm:px-8 text-center">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 leading-tight">
             Monitor Your Network Traffic
