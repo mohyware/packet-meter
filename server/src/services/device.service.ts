@@ -5,7 +5,11 @@ import {
   hashDeviceToken,
   verifyDeviceToken,
 } from '../utils/auth';
-import { roundToUTCHour, roundToUTCDay } from '../utils/timezone';
+import {
+  roundToUTCHour,
+  roundToUTCDay,
+  roundToUTCMonth,
+} from '../utils/timezone';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { startOfDay, subDays, startOfMonth, subMonths } from 'date-fns';
 
@@ -240,10 +244,13 @@ export async function getDeviceReports(
   // Use UTC methods since timestamps are stored in UTC and rounded to hour boundaries
   let startDate: Date | undefined;
   let endDate: Date | undefined;
-  if (isAndroid) {
+
+  // Get Last 24 hours as its per day anyway for android
+  if (isAndroid && period === 'hours') {
     period = 'days';
     count = 1;
   }
+
   if (period && count && count > 0) {
     const now = new Date();
     switch (period) {
@@ -260,19 +267,15 @@ export async function getDeviceReports(
         break;
       }
       case 'days': {
+        // For "last N days", we want the current day plus the previous (N-1) days
+        // Use timezone-aware calculation: get start of current day in user's timezone,
+        const nowInTimezone = toZonedTime(now, timezone);
+        const startOfCurrentDay = startOfDay(nowInTimezone);
+        const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
+        // Convert back to UTC for comparison with database timestamps (stored in UTC)
+        startDate = fromZonedTime(startOfTargetDay, timezone);
         if (isAndroid) {
-          endDate = new Date(now);
-          startDate = new Date(now);
-          startDate.setTime(startDate.getTime() - count * 24 * 60 * 60 * 1000);
           startDate = roundToUTCDay(startDate); // As android reports by day
-        } else {
-          // For "last N days", we want the current day plus the previous (N-1) days
-          // Use timezone-aware calculation: get start of current day in user's timezone,
-          const nowInTimezone = toZonedTime(now, timezone);
-          const startOfCurrentDay = startOfDay(nowInTimezone);
-          const startOfTargetDay = subDays(startOfCurrentDay, count - 1);
-          // Convert back to UTC for comparison with database timestamps (stored in UTC)
-          startDate = fromZonedTime(startOfTargetDay, timezone);
         }
         break;
       }
@@ -281,6 +284,9 @@ export async function getDeviceReports(
         const startOfCurrentMonth = startOfMonth(nowInTimezone);
         const startOfTargetMonth = subMonths(startOfCurrentMonth, count - 1);
         startDate = fromZonedTime(startOfTargetMonth, timezone);
+        if (isAndroid) {
+          startDate = roundToUTCMonth(startDate); // As android reports by day
+        }
         break;
       }
     }

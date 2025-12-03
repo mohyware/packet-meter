@@ -12,7 +12,9 @@ import {
 } from '../src/db/index.js';
 import { eq, and } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
-import { addMonths } from 'date-fns';
+import { addMonths, subMonths, startOfDay } from 'date-fns';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
+import { roundToUTCHour, roundToUTCDay } from '../src/utils/timezone.js';
 
 type SeedTier = 'normal' | 'premier';
 
@@ -249,11 +251,13 @@ async function seedDummyData(userId: string, timezone: string) {
     });
 
     const deviceIds: string[] = [];
+    const deviceTypeMap = new Map<string, 'windows' | 'android'>();
 
     for (let i = 0; i < DEVICE_NAMES.length; i += 1) {
         const existing = devicesForUser.find((d) => d.name === DEVICE_NAMES[i]);
         if (existing) {
             deviceIds.push(existing.id);
+            deviceTypeMap.set(existing.id, DEVICE_TYPES[i]);
             continue;
         }
 
@@ -270,6 +274,7 @@ async function seedDummyData(userId: string, timezone: string) {
             })
             .returning();
         deviceIds.push(newDevice.id);
+        deviceTypeMap.set(newDevice.id, DEVICE_TYPES[i]);
         console.log(`Created device ${DEVICE_NAMES[i]} (${newDevice.id})`);
     }
 
@@ -308,25 +313,40 @@ async function seedDummyData(userId: string, timezone: string) {
     }
 
     const now = new Date();
-    const startDate = new Date(now);
-    startDate.setMonth(startDate.getMonth() - MONTHS_OF_DUMMY_DATA);
-    startDate.setMinutes(0, 0, 0);
 
-    const hoursToGenerate = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60));
+    // Calculate start date in user's timezone
+    const nowInTimezone = toZonedTime(now, timezone);
+    const startOfCurrentDay = startOfDay(nowInTimezone);
+    const startOfTargetDay = subMonths(startOfCurrentDay, MONTHS_OF_DUMMY_DATA);
+    const startDateInTimezone = startOfTargetDay;
+
+    // Convert to UTC for database storage
+    const startDateUTC = fromZonedTime(startDateInTimezone, timezone);
+    const startDateUTCForWindows = roundToUTCHour(startDateUTC);
+    const startDateUTCForAndroid = roundToUTCDay(startDateUTC);
+
+    const nowUTC = roundToUTCHour(now);
+    const nowUTCForAndroid = roundToUTCDay(now);
+    const hoursToGenerate = Math.floor((nowUTC.getTime() - startDateUTCForWindows.getTime()) / (1000 * 60 * 60));
+    const daysToGenerate = Math.floor((nowUTCForAndroid.getTime() - startDateUTCForAndroid.getTime()) / (1000 * 60 * 60 * 24)) + 1; // +1 to include today
     const batchSize = 1000;
     const pendingReports: typeof reports.$inferInsert[] = [];
 
     console.log(
-        `Generating ${hoursToGenerate} hours of usage for ${deviceIds.length} devices (${timezone}).`
+        `Generating ${hoursToGenerate} hours of usage for Windows devices and ${daysToGenerate} days for Android devices (${timezone}).`
     );
 
+    // Generate data for Windows devices (per hour)
     for (let hour = 0; hour < hoursToGenerate; hour += 1) {
-        const timestamp = new Date(startDate);
-        timestamp.setHours(timestamp.getHours() + hour);
-        timestamp.setMinutes(0, 0, 0);
-        const utcTimestamp = new Date(timestamp.toISOString().slice(0, 13) + ':00:00.000Z');
+        const utcTimestamp = new Date(startDateUTCForWindows);
+        utcTimestamp.setUTCHours(utcTimestamp.getUTCHours() + hour);
 
         for (const deviceId of deviceIds) {
+            const deviceType = deviceTypeMap.get(deviceId);
+            if (deviceType !== 'windows') {
+                continue;
+            }
+
             const appMap = deviceAppMap.get(deviceId);
             if (!appMap) {
                 continue;
@@ -365,6 +385,66 @@ async function seedDummyData(userId: string, timezone: string) {
                             baseTxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
                         )
                     ) + BigInt(Math.floor(Math.random() * 250_000_000));
+
+                pendingReports.push({
+                    deviceId,
+                    appId,
+                    timestamp: utcTimestamp,
+                    totalRx: totalRx.toString(),
+                    totalTx: totalTx.toString(),
+                });
+
+                if (pendingReports.length >= batchSize) {
+                    const batch = pendingReports.splice(0, batchSize);
+                    await db.insert(reports).values(batch).onConflictDoNothing();
+                }
+            }
+        }
+    }
+
+    // Generate data for Android devices (per day)
+    for (let day = 0; day < daysToGenerate; day += 1) {
+        const utcTimestamp = new Date(startDateUTCForAndroid);
+        utcTimestamp.setUTCDate(utcTimestamp.getUTCDate() + day);
+
+        for (const deviceId of deviceIds) {
+            const deviceType = deviceTypeMap.get(deviceId);
+            if (deviceType !== 'android') {
+                continue;
+            }
+
+            const appMap = deviceAppMap.get(deviceId);
+            if (!appMap) {
+                continue;
+            }
+
+            for (const [, appId] of appMap) {
+                const dayOfWeek = utcTimestamp.getUTCDay();
+
+                let trafficMultiplier = 1.0;
+                if (dayOfWeek === 0 || dayOfWeek === 6) {
+                    trafficMultiplier = 0.6;
+                } else {
+                    trafficMultiplier = 1.5;
+                }
+
+                const randomFactor = 0.7 + Math.random() * 0.6;
+                // Daily totals should be higher than hourly
+                const baseRxBytes = 2 * 1024 * 1024 * 1024; // 2GB per day
+                const baseTxBytes = 1 * 1024 * 1024 * 1024; // 1GB per day
+
+                const totalRx =
+                    BigInt(
+                        Math.floor(
+                            baseRxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
+                        )
+                    ) + BigInt(Math.floor(Math.random() * 5_000_000_000));
+                const totalTx =
+                    BigInt(
+                        Math.floor(
+                            baseTxBytes * trafficMultiplier * randomFactor * (Math.random() + 0.5)
+                        )
+                    ) + BigInt(Math.floor(Math.random() * 2_500_000_000));
 
                 pendingReports.push({
                     deviceId,

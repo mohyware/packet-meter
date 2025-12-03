@@ -16,7 +16,6 @@ RUN npm ci
 COPY src ./src
 COPY scripts ./scripts
 COPY drizzle.config.ts ./
-COPY drizzle ./drizzle
 COPY .env.example .env
 
 RUN npm run build
