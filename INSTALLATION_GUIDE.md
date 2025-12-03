@@ -138,7 +138,7 @@ Once your central server and web dashboard are running, you need to ensure that 
     - After saving, the client should connect automatically and begin sending usage reports in the background.
 
 **Note (Windows users)**:
-If the Windows service does not start automatically, add it to system startup manually using Task Manager.
+If the Windows service does not start automatically, add it from ``"C:\Program Files\PacketMeter\Daemon\packetmeter-daemon.exe"`` to system startup manually using Task Manager.
 
 ## Support
 
