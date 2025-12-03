@@ -112,6 +112,34 @@ See [Windows Daemon README](./client-pc/daemon-win/README.md) for installation i
 
 See [Client Phone README](./client-phone/README.md) for installation instructions.
 
+## Connecting All Devices on the Local Network
+Once your central server and web dashboard are running, you need to ensure that other devices on your LAN can reach the server.
+
+1. Allow Local Network Access
+    - Create a firewall inbound rule to allow traffic on port 8080 (the server port).
+    - Verify that your router allows local devices to communicate with each other (most routers do by default).
+
+2. Find Your Server’s Local IP Address
+    - On the machine running PacketMeter Server, run:
+    ```bash
+    ipconfig   # Windows
+    ifconfig   # Linux/macOS
+    ```
+    - Use the IPv4 address (e.g., 192.168.1.5) when connecting client devices.
+
+3. Register Devices on the Dashboard
+    - Open the dashboard and create a new device entry.
+    - Copy the generated token (or scan the QR code) from the dashboard.
+
+4. Configure Each Client (PC or Phone)
+    - On the device running the PacketMeter client:
+      - Paste the device token.
+      - Enter the server’s local IP address in the Server Address field.
+    - After saving, the client should connect automatically and begin sending usage reports in the background.
+
+**Note (Windows users)**:
+If the Windows service does not start automatically, add it to system startup manually using Task Manager.
+
 ## Support
 
 For additional help, please open an issue on GitHub.
